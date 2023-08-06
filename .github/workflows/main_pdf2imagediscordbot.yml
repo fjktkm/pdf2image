@@ -52,5 +52,5 @@ jobs:
         with:
           app-name: 'pdf2imageDiscordBot'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_7538D3BD02CF4DCDBA20A716ABD50C06 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B8C4FEE9BCD64D368A3251B6C7B3CB14 }}
           package: .
