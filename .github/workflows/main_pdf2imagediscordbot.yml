@@ -28,17 +28,14 @@ jobs:
           key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
           restore-keys: ${{ runner.OS }}-npm-
 
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run build --if-present
-          # npm run test --if-present
+      - name: Install npm dependencies
+        run: npm install
 
       # 必要なファイルだけをビルドディレクトリにコピー
       - name: Prepare files for deployment
         run: |
-          mkdir build
-          cp -r commands events index.js deploy-commands.js ecosystem.config.js package.json build
+          New-Item -ItemType Directory -Force -Path build
+          Copy-Item -Path commands, events, index.js, deploy-commands.js, ecosystem.config.js, package.json, package-lock.json -Destination build -Recurse
 
       # ビルドディレクトリだけをアップロード
       - name: Upload artifact for deployment job
@@ -59,6 +56,16 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: node-app
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.OS }}-npm-
+
+      - name: Install npm dependencies
+        run: npm install
 
       - name: "Deploy to Azure Web App"
         uses: azure/webapps-deploy@v2
