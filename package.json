@@ -4,6 +4,7 @@
   "description": "PDF を画像に変換してくれる Discord Bot です",
   "main": "index.js",
   "scripts": {
+    "start": "pm2-runtime start ecosystem.config.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -11,7 +12,8 @@
   "dependencies": {
     "discord.js": "^14.12.1",
     "node-fetch": "^3.3.2",
-    "pdf-poppler": "^0.2.1"
+    "pdf-poppler": "^0.2.1",
+    "pm2": "^5.3.0"
   },
   "devDependencies": {
     "eslint": "^8.46.0"
