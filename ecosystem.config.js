@@ -1,8 +1,8 @@
 module.exports = {
     apps: [
         {
-            name: 'my-app',
-            script: './app.js', // あなたのエントリポイントへのパス
+            name: 'pdf2image',
+            script: './index.js',
             instances: 1,
             autorestart: true,
             watch: false,
