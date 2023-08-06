@@ -28,7 +28,7 @@ const createUniqueTempDir = (tempDir, originalFilename) => {
 };
 
 const sendImages = async (interaction, imageDir) => {
-    const files = fs.promises.readdir(imageDir).map(filename => `${imageDir}/${filename}`);
+    const files = fs.readdirSync(imageDir).map(filename => `${imageDir}/${filename}`);
     for (let i = 0; i < files.length; i += maxFilesPerMessage) {
         const filesToSend = files.slice(i, i + maxFilesPerMessage);
         if (i === 0) {
@@ -73,7 +73,7 @@ module.exports = {
         const originalFilename = path.basename(attachment.name, '.pdf');
         const tempDir = os.tmpdir();
         const imageDir = createUniqueTempDir(tempDir, originalFilename);
-        const pdfPath = path.join(imageDir, `${originalFilename}.pdf`);
+        const pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
 
         try {
             await downloadPDF(attachment.url, pdfPath);
