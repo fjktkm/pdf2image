@@ -21,6 +21,13 @@ jobs:
         with:
           node-version: '18.x'
 
+      - name: Cache npm dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.OS }}-npm-
+
       - name: npm install, build, and test
         run: |
           npm install
