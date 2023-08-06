@@ -34,7 +34,7 @@ const sendImages = async (interaction, imageDir) => {
         if (i === 0) {
             await interaction.editReply({ files: filesToSend });
         } else {
-            await interaction.followUp({ files: filesToSend });
+            await interaction.channel.send({ files: filesToSend });
         }
     }
 };
