@@ -7,16 +7,13 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const maxFilesPerMessage = 10;
 
-const downloadPDF = (url, path) => {
-    return new Promise((resolve, reject) => {
-        https.get(url, (response) => {
-            const stream = fs.createWriteStream(path);
-            response.pipe(stream);
-            stream.on('finish', resolve);
-            stream.on('error', reject);
-        });
-    });
-};
+const downloadPDF = (url, path) => new Promise((resolve, reject) => {
+    const stream = fs.createWriteStream(path);
+    https.get(url, response => response.pipe(stream));
+    stream.on('finish', resolve);
+    stream.on('error', reject);
+});
+
 
 const createUniqueTempDir = (tempDir, originalFilename) => {
     const uniqueId = uuidv4();
@@ -27,28 +24,56 @@ const createUniqueTempDir = (tempDir, originalFilename) => {
     return uniqueDir;
 };
 
-const sendImages = async (interaction, imageDir) => {
+const sendImages = async (targetMessage, imageDir) => {
     const files = fs.readdirSync(imageDir).map(filename => `${imageDir}/${filename}`);
     for (let i = 0; i < files.length; i += maxFilesPerMessage) {
         const filesToSend = files.slice(i, i + maxFilesPerMessage);
         if (i === 0) {
-            await interaction.editReply({ files: filesToSend });
+            await targetMessage.reply({
+                files: filesToSend,
+                allowedMentions: { repliedUser: false }
+            });
         } else {
-            await interaction.channel.send({ files: filesToSend });
+            await targetMessage.channel.send({
+                files: filesToSend
+            });
         }
     }
 };
 
 const cleanUp = (filePath, dirPath) => {
+    if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+    if (dirPath && fs.existsSync(dirPath)) {
+        fs.rmSync(dirPath, { recursive: true });
+    }
+};
+
+const processPDF = async (targetMessage, attachment) => {
+    const originalFilename = path.basename(attachment.name, '.pdf');
+    const tempDir = os.tmpdir();
+    const imageDir = createUniqueTempDir(tempDir, originalFilename);
+    const pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
+
     try {
-        if (filePath && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        if (dirPath && fs.existsSync(dirPath)) {
-            fs.rmSync(dirPath, { recursive: true });
-        }
+        await downloadPDF(attachment.url, pdfPath);
+        const opts = {
+            format: 'png',
+            out_dir: imageDir,
+            out_prefix: originalFilename,
+            scale: 2048
+        };
+        await convert.convert(pdfPath, opts);
+        await sendImages(targetMessage, imageDir);
     } catch (error) {
-        console.error('Error cleaning up temporary files:', error);
+        console.error(error);
+        await targetMessage.reply({
+            content: `An error occurred while converting the PDF ${attachment.name} to images.`,
+            ephemeral: true
+        });
+    } finally {
+        cleanUp(pdfPath, imageDir);
     }
 };
 
@@ -57,39 +82,42 @@ module.exports = {
         .setName('convertPDF')
         .setType(ApplicationCommandType.Message),
     async execute(interaction) {
-
-        const attachment = interaction.options.getMessage('message').attachments.first();
-        if (!attachment) {
-            await interaction.reply({ content: 'No file was attached.', ephemeral: true });
-            return;
-        }
-        if (!attachment.name.endsWith('.pdf')) {
-            await interaction.reply({ content: 'The attached file is not a PDF.', ephemeral: true });
-            return;
-        }
-
         await interaction.deferReply();
 
-        const originalFilename = path.basename(attachment.name, '.pdf');
-        const tempDir = os.tmpdir();
-        const imageDir = createUniqueTempDir(tempDir, originalFilename);
-        const pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
+        const targetMessage = interaction.options.getMessage('message');
+        const attachments = Array.from(targetMessage.attachments.values());
 
-        try {
-            await downloadPDF(attachment.url, pdfPath);
-            const opts = {
-                format: 'png',
-                out_dir: imageDir,
-                out_prefix: originalFilename,
-                scale: 2048
-            };
-            await convert.convert(pdfPath, opts);
-            await sendImages(interaction, imageDir);
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply({ content: 'An error occurred while converting the PDF to images.', ephemeral: true });
-        } finally {
-            cleanUp(pdfPath, imageDir);
+        if (attachments.length === 0) {
+            await targetMessage.reply({
+                content: 'No file was attached.',
+                ephemeral: true
+            });
+            await interaction.deleteReply();
+            return;
         }
+
+        const pdfAttachments = attachments.filter(attachment => attachment.name.endsWith('.pdf'));
+
+        if (pdfAttachments.length === 0) {
+            const hasSingleAttachment = attachments.length === 1;
+            if (hasSingleAttachment) {
+                await targetMessage.reply({
+                    content: 'The attached file is not a PDF.',
+                    ephemeral: true
+                });
+            } else {
+                await targetMessage.reply({
+                    content: 'None of the attached files are PDFs.',
+                    ephemeral: true
+                });
+            }
+            await interaction.deleteReply();
+            return;
+        }
+
+        for (const attachment of pdfAttachments) {
+            await processPDF(targetMessage, attachment);
+        }
+        await interaction.deleteReply();
     },
 };
