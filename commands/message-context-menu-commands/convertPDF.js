@@ -68,9 +68,8 @@ const processPDF = async (targetMessage, attachment) => {
         await sendImages(targetMessage, imageDir);
     } catch (error) {
         console.error(error);
-        await targetMessage.reply({
-            content: `An error occurred while converting the PDF ${attachment.name} to images.`,
-            ephemeral: true
+        await targetMessage.editReply({
+            content: `An error occurred while converting the PDF ${attachment.name} to images.`
         });
     } finally {
         cleanUp(pdfPath, imageDir);
@@ -82,17 +81,15 @@ module.exports = {
         .setName('convertPDF')
         .setType(ApplicationCommandType.Message),
     async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ ephemeral: true });
 
         const targetMessage = interaction.options.getMessage('message');
         const attachments = Array.from(targetMessage.attachments.values());
 
         if (attachments.length === 0) {
-            await targetMessage.reply({
-                content: 'No file was attached.',
-                ephemeral: true
+            await interaction.editReply({
+                content: 'No file was attached.'
             });
-            await interaction.deleteReply();
             return;
         }
 
@@ -101,17 +98,14 @@ module.exports = {
         if (pdfAttachments.length === 0) {
             const hasSingleAttachment = attachments.length === 1;
             if (hasSingleAttachment) {
-                await targetMessage.reply({
-                    content: 'The attached file is not a PDF.',
-                    ephemeral: true
+                await interaction.editReply({
+                    content: 'The attached file is not a PDF.'
                 });
             } else {
-                await targetMessage.reply({
-                    content: 'None of the attached files are PDFs.',
-                    ephemeral: true
+                await interaction.editReply({
+                    content: 'None of the attached files are PDFs.'
                 });
             }
-            await interaction.deleteReply();
             return;
         }
 
