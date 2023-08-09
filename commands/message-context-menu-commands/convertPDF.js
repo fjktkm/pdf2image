@@ -68,7 +68,7 @@ const processPDF = async (targetMessage, attachment) => {
         await sendImages(targetMessage, imageDir);
     } catch (error) {
         console.error(error);
-        await targetMessage.editReply({
+        await targetMessage.reply({
             content: `An error occurred while converting the PDF ${attachment.name} to images.`
         });
     } finally {
