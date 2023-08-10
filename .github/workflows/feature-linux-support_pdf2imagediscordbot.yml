@@ -28,16 +28,14 @@ jobs:
           key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
           restore-keys: ${{ runner.OS }}-npm-
 
-      - name: npm install, build, and test
+      - name: Install npm dependencies
         run: npm install
 
-      # 必要なファイルだけをビルドディレクトリにコピー
       - name: Prepare files for deployment
         run: |
-          New-Item -ItemType Directory -Force -Path build
-          Copy-Item -Path commands, events, index.js, deploy-commands.js, ecosystem.config.js, package.json, package-lock.json -Destination build -Recurse
+          mkdir build
+          cp -r commands events index.js deploy-commands.js ecosystem.config.js package.json package-lock.json build
 
-      # ビルドディレクトリだけをアップロード
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v2
         with:
