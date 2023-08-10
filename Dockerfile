@@ -12,6 +12,9 @@ RUN apt-get update && \
 # ImageMagickのポリシーファイルのコピー（ルートディレクトリにpolicy.xmlがある場合）
 COPY ./docker/policy.xml /etc/ImageMagick-6/policy.xml
 
+# アプリケーションがリッスンするポートを公開
+EXPOSE 3000
+
 # アプリケーションディレクトリを作成
 WORKDIR /usr/src/app
 
@@ -23,9 +26,6 @@ RUN npm install
 
 # アプリケーションのソースをコピー
 COPY . .
-
-# アプリケーションがリッスンするポートを公開
-EXPOSE 3000
 
 # アプリケーションの起動コマンド
 CMD [ "npm", "start" ]
