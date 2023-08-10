@@ -28,5 +28,5 @@ RUN npm install
 COPY . .
 
 # アプリケーションの起動コマンド
-CMD [ "npm", "start" ]
+CMD [ "node", "index.js" ]
 
