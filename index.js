@@ -1,13 +1,21 @@
+const http = require('http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 
-// const { token } = require('./config.json');
-const token = process.env.DISCORD_TOKEN;
+const server = http.createServer((req, res) => {
+	res.writeHead(200, { 'Content-Type': 'text/plain' });
+	res.end('Discord Bot is running');
+});
+
+const port = process.env.PORT || 3000;
+server.listen(port, () => {
+	console.log(`Server running on port ${port}`);
+});
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
 client.commands = new Collection();
+
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
@@ -38,4 +46,5 @@ for (const file of eventFiles) {
 	}
 }
 
+const token = process.env.DISCORD_TOKEN;
 client.login(token);
