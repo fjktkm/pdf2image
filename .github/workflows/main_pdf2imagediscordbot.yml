@@ -1,77 +1,51 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - pdf2imageDiscordBot
+name: Build and deploy container app to Azure Web App - pdf2imageDiscordBot
 
 on:
   push:
     branches:
-      - main
+      - feature/linux-support
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: 'ubuntu-latest'
 
     steps:
-      - uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v1
-        with:
-          node-version: "18.x"
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-      - name: Cache npm dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: ${{ runner.OS }}-npm-
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://index.docker.io/v1/
+        username: ${{ secrets.AzureAppService_ContainerUsername_e0bdccf4d63841749caa134769a9b85d }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_280217e80d8e4ebc820ae2c42af9cd0a }}
 
-      - name: Install npm dependencies
-        run: npm install
-
-      # 必要なファイルだけをビルドディレクトリにコピー
-      - name: Prepare files for deployment
-        run: |
-          New-Item -ItemType Directory -Force -Path build
-          Copy-Item -Path commands, events, index.js, deploy-commands.js, ecosystem.config.js, package.json, package-lock.json -Destination build -Recurse
-
-      # ビルドディレクトリだけをアップロード
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v2
-        with:
-          name: node-app
-          path: build
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_e0bdccf4d63841749caa134769a9b85d }}/pdf2image:${{ github.sha }}
+        file: ./Dockerfile
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: "Production"
+      name: 'production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v2
-        with:
-          name: node-app
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.OS }}-npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: ${{ runner.OS }}-npm-
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: "Deploy to Azure Web App"
-        uses: azure/webapps-deploy@v2
-        id: deploy-to-webapp
-        with:
-          app-name: "pdf2imageDiscordBot"
-          slot-name: "Production"
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C140FD55D98F4FD2B66EBB60809FAFB3 }}
-          package: .
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'pdf2imageDiscordBot'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_315d76793183476baa2dc652887dbf46 }}
+        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_e0bdccf4d63841749caa134769a9b85d }}/pdf2image:${{ github.sha }}'
