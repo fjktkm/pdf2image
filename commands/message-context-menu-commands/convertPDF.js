@@ -9,15 +9,13 @@ const maxFilesPerMessage = 10;
 
 const downloadPDF = (url, path) => new Promise((resolve, reject) => {
     const stream = fs.createWriteStream(path);
-    https.get(url, response => response.pipe(stream));
+    https.get(url, response => response.pipe(stream)).on('error', reject);
     stream.on('finish', resolve);
     stream.on('error', reject);
 });
 
-
 const createUniqueTempDir = (tempDir, originalFilename) => {
-    const uniqueId = uuidv4();
-    const uniqueDir = path.join(tempDir, `${originalFilename}_${uniqueId}`);
+    const uniqueDir = path.join(tempDir, `${originalFilename}_${uuidv4()}`);
     if (!fs.existsSync(uniqueDir)) {
         fs.mkdirSync(uniqueDir);
     }
@@ -67,10 +65,7 @@ const processPDF = async (targetMessage, attachment) => {
         await converter.convertPDF(pdfPath);
         await sendImages(targetMessage, imageDir);
     } catch (error) {
-        console.error(error);
-        await targetMessage.reply({
-            content: `An error occurred while converting the PDF ${attachment.name} to images.`
-        });
+        throw new Error(`An error occurred while converting the PDF ${attachment.name} to images.`);
     } finally {
         cleanUp(pdfPath, imageDir);
     }
@@ -96,22 +91,25 @@ module.exports = {
         const pdfAttachments = attachments.filter(attachment => attachment.name.endsWith('.pdf'));
 
         if (pdfAttachments.length === 0) {
-            const hasSingleAttachment = attachments.length === 1;
-            if (hasSingleAttachment) {
-                await interaction.editReply({
-                    content: 'The attached file is not a PDF.'
-                });
-            } else {
-                await interaction.editReply({
-                    content: 'None of the attached files are PDFs.'
-                });
-            }
+            const errorMessage = attachments.length === 1
+                ? 'The attached file is not a PDF.'
+                : 'None of the attached files are PDFs.';
+            await interaction.editReply({
+                content: errorMessage
+            });
             return;
         }
 
-        for (const attachment of pdfAttachments) {
-            await processPDF(targetMessage, attachment);
+        try {
+            for (const attachment of pdfAttachments) {
+                await processPDF(targetMessage, attachment);
+            }
+            await interaction.deleteReply();
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply({
+                content: error.message
+            });
         }
-        await interaction.deleteReply();
     },
 };
