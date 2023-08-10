@@ -23,14 +23,14 @@ jobs:
       uses: docker/login-action@v2
       with:
         registry: https://index.docker.io/v1/
-        username: ${{ secrets.AzureAppService_ContainerUsername_1202f6e83693480d8404e480bea342eb }}
-        password: ${{ secrets.AzureAppService_ContainerPassword_d66c24be09dc489d98861e1a15b67eda }}
+        username: ${{ secrets.AzureAppService_ContainerUsername_a54955018ae44945b31f85413a46775e }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_18a4ae773f45479da1e4a04d8902e0f1 }}
 
     - name: Build and push container image to registry
       uses: docker/build-push-action@v3
       with:
         push: true
-        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_1202f6e83693480d8404e480bea342eb }}/fjktkm/pdf2image:${{ github.sha }}
+        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_a54955018ae44945b31f85413a46775e }}/fjktkm/pdf2image:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
@@ -47,5 +47,5 @@ jobs:
       with:
         app-name: 'pdf2imageDiscordBot'
         slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_a0c02cd745124d528056c79fd4013911 }}
-        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_1202f6e83693480d8404e480bea342eb }}/fjktkm/pdf2image:${{ github.sha }}'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_4f42188aa7a64ee489e93a151b12644b }}
+        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_a54955018ae44945b31f85413a46775e }}/fjktkm/pdf2image:${{ github.sha }}'
