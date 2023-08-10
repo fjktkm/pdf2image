@@ -1,0 +1,5 @@
+.github
+node_modules
+.gitignore
+config.json
+package-lock.json
