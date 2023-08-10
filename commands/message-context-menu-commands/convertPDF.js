@@ -1,5 +1,5 @@
 const { ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
-const convert = require('pdf-poppler');
+const pdf2image = require('pdf2image');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
@@ -58,13 +58,13 @@ const processPDF = async (targetMessage, attachment) => {
 
     try {
         await downloadPDF(attachment.url, pdfPath);
-        const opts = {
-            format: 'png',
-            out_dir: imageDir,
-            out_prefix: originalFilename,
-            scale: 2048
-        };
-        await convert.convert(pdfPath, opts);
+        const converter = pdf2image.compileConverter({
+            density: 300,
+            outputFormat: path.join(imageDir, originalFilename + '_page_%d'),
+            outputType: 'png',
+            backgroundColor: '#FFFFFF'
+        });
+        await converter.convertPDF(pdfPath);
         await sendImages(targetMessage, imageDir);
     } catch (error) {
         console.error(error);
