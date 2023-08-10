@@ -28,5 +28,5 @@ COPY . .
 EXPOSE 3000
 
 # アプリケーションの起動コマンド
-CMD [ "node", "index.js" ]
+CMD [ "npm", "start" ]
 
