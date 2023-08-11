@@ -24,9 +24,11 @@ COPY package*.json ./
 # 依存関係のインストール
 RUN npm install
 
+# PM2のインストール
+RUN npm install pm2 -g
+
 # アプリケーションのソースをコピー
 COPY . .
 
-# アプリケーションの起動コマンド
-CMD [ "node", "index.js" ]
-
+# アプリケーションの起動コマンド（PM2で管理）
+CMD [ "pm2-runtime", "start", "index.js" ]
