@@ -11,4 +11,5 @@
   <policy domain="coder" rights="none" pattern="*" />
   <policy domain="coder" rights="read|write" pattern="PDF" />
   <policy domain="coder" rights="read|write" pattern="PNG" />
+  <policy domain="coder" rights="read|write" pattern="WEBP" />
 </policymap>

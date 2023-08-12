@@ -6,7 +6,7 @@ ENV TZ=Asia/Tokyo
 
 # Imagemagickとpdfinfoのインストール
 RUN apt-get update && \
-    apt-get install -y imagemagick poppler-utils ghostscript && \
+    apt-get install -y imagemagick ghostscript && \
     rm -rf /var/lib/apt/lists/*
 
 # ImageMagickのポリシーファイルのコピー（ルートディレクトリにpolicy.xmlがある場合）
