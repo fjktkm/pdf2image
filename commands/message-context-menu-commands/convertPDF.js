@@ -84,7 +84,7 @@ const processAttachment = async (targetMessage, attachment) => {
         const originalFilename = path.basename(attachment.name, '.pdf');
         const imageDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), originalFilename + "_"));
         const pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
-        const webpPath = path.join(imageDir, originalFilename + '_page_%d.webp');
+        const webpPath = path.join(imageDir, originalFilename + '_page_%03d.webp');
 
         await downloadPdf(attachment.url, pdfPath);
         await convertPdfToWebps(pdfPath, webpPath);
