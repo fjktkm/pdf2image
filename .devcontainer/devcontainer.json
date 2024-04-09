@@ -1,9 +1,8 @@
 {
-	"name": "Existing Dockerfile",
-	"build": {
-		"context": "..",
-		"dockerfile": "../Dockerfile"
-	},
+	"name": "pdf2img",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
 	"mounts": [
 		{
 			"type": "volume",

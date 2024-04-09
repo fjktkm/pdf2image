@@ -1,6 +1,6 @@
+.env
 .git
 .github
-node_modules
 .gitignore
-config.json
+node_modules
 package-lock.json

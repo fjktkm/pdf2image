@@ -31,7 +31,7 @@ jobs:
       with:
         push: true
         tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_e232d28a21804bb3b8858d7288ddf610 }}/pdf2image:${{ github.sha }}
-        file: ./Dockerfile
+        file: .devcontainer/Dockerfile
 
   deploy:
     runs-on: ubuntu-latest
