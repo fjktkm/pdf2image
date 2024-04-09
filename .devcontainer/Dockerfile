@@ -10,7 +10,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # ImageMagickのポリシーファイルのコピー（ルートディレクトリにpolicy.xmlがある場合）
-COPY ./docker/policy.xml /etc/ImageMagick-6/policy.xml
+COPY .devcontainer/image-magick/policy.xml /etc/ImageMagick-6/policy.xml
 
 # アプリケーションがリッスンするポートを公開
 EXPOSE 3000
