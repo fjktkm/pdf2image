@@ -4,8 +4,11 @@ services:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
+      target: development
     env_file:
       - ../.env
     volumes:
-      - ..:/workspace
+      - ..:/workspaces/pdf2img
+    ports:
+      - "3000:3000"
     command: /bin/bash -c "while true; do sleep 1000; done"
