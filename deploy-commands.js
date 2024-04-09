@@ -24,7 +24,7 @@ for (const folder of commandFolders) {
 }
 
 // Construct and prepare an instance of the REST module
-const token = process.env.DISCORD_TOKEN;
+const token = process.env.TOKEN;
 const clientId = process.env.CLIENT_ID;
 const rest = new REST().setToken(token);
 

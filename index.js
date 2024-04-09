@@ -46,5 +46,5 @@ for (const file of eventFiles) {
 	}
 }
 
-const token = process.env.DISCORD_TOKEN;
+const token = process.env.TOKEN;
 client.login(token);
