@@ -1,8 +1,8 @@
 {
-	"name": "pdf2img",
+	"name": "pdf2image",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "bot",
-	"workspaceFolder": "/workspaces/pdf2img",
+	"workspaceFolder": "/workspaces/pdf2image",
 	"mounts": [
 		{
 			"type": "volume",

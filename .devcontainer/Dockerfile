@@ -10,7 +10,7 @@ COPY .devcontainer/image-magick/policy.xml /etc/ImageMagick-6/policy.xml
 
 EXPOSE 3000
 
-WORKDIR /workspaces/pdf2img
+WORKDIR /workspaces/pdf2image
 
 COPY package.json package-lock.json ./
 
@@ -30,7 +30,7 @@ COPY .devcontainer/image-magick/policy.xml /etc/ImageMagick-6/policy.xml
 
 EXPOSE 3000
 
-WORKDIR /workspaces/pdf2img
+WORKDIR /workspaces/pdf2image
 
 COPY package.json package-lock.json ./
 
