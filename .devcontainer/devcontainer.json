@@ -1,7 +1,7 @@
 {
 	"name": "pdf2img",
 	"dockerComposeFile": "docker-compose.yml",
-	"service": "app",
+	"service": "bot",
 	"workspaceFolder": "/workspace",
 	"mounts": [
 		{
