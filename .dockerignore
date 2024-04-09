@@ -1,7 +1,7 @@
+.github
 node_modules
 .env
 .env.sample
 .git
-.github
-.gitignore
 .gitattributes
+.gitignore
