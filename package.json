@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "prod": "pm2 start src/index.js --name pdf2image"
+    "prod": "pm2-runtime start src/index.js --name pdf2image"
   },
   "author": "",
   "license": "ISC",
