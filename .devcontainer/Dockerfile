@@ -3,10 +3,8 @@ FROM node:20 as development
 ENV TZ=Asia/Tokyo
 
 RUN apt-get update && \
-    apt-get install -y imagemagick ghostscript && \
+    apt-get install -y libvips-tools && \
     rm -rf /var/lib/apt/lists/*
-
-COPY .devcontainer/image-magick/policy.xml /etc/ImageMagick-6/policy.xml
 
 EXPOSE 3000
 
@@ -23,10 +21,8 @@ FROM node:20-slim as production
 ENV TZ=Asia/Tokyo
 
 RUN apt-get update && \
-    apt-get install -y imagemagick ghostscript && \
+    apt-get install -y libvips-tools && \
     rm -rf /var/lib/apt/lists/*
-
-COPY .devcontainer/image-magick/policy.xml /etc/ImageMagick-6/policy.xml
 
 EXPOSE 3000
 
