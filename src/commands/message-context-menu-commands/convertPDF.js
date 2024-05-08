@@ -1,5 +1,5 @@
 const { ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
-const { exec } = require('child_process');
+const sharp = require('sharp');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
@@ -29,19 +29,21 @@ const downloadPdf = (url, path) => new Promise((resolve, reject) => {
     });
 });
 
-const convertPdfToWebps = (pdfPath, webpPath) => {
-    const command = `convert -density 150 -alpha remove ${pdfPath} ${webpPath}`;
+const convertPdfToWebps = async (pdfPath, webpPath) => {
+    const pdfData = await sharp(pdfPath).metadata();
 
-    return new Promise((resolve, reject) => {
-        exec(command, (error) => {
-            if (error) {
-                const errorMessage = `An error occurred while converting the PDF. Error: ${error}`;
-                reject(new Error(errorMessage));
-                return;
-            }
-            resolve();
-        });
+    const promises = pdfData.pages.map(async (_, i) => {
+        const webpPath = path.join(outputDir, `output_${i + 1}.webp`);
+        try {
+            return await sharp(pdfPath, { page: i })
+                .webp()
+                .toFile(webpPath);
+        } catch (err) {
+            throw new Error(`An error occurred while converting the PDF. Error: ${err.message}`);
+        }
     });
+
+    await Promise.all(promises);
 };
 
 const sendWebps = async (targetMessage, imageDir) => {
