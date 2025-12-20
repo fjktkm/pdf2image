@@ -87,7 +87,11 @@ const cleanUp = async (filePath: string | undefined, dirPath: string | undefined
 	}
 };
 
-const processAttachment = async (targetMessage: Message, attachment: Attachment): Promise<void> => {
+const processAttachment = async (
+	targetMessage: Message,
+	attachment: Attachment,
+	updateProgress: (message: string) => Promise<void>
+): Promise<void> => {
 	let pdfPath: string | undefined;
 	let imageDir: string | undefined;
 
@@ -97,8 +101,13 @@ const processAttachment = async (targetMessage: Message, attachment: Attachment)
 		pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
 		const webpPath = path.join(imageDir, originalFilename + '_page_%03d.webp');
 
+		await updateProgress(`Downloading...`);
 		await downloadPdf(attachment.url, pdfPath);
+
+		await updateProgress(`Converting...`);
 		await convertPdfToWebps(pdfPath, webpPath);
+
+		await updateProgress(`Sending...`);
 		await sendWebps(targetMessage, imageDir);
 	} catch (error) {
 		console.error(`An error occurred while converting the PDF ${attachment.name} to webp. Error:`, error);
@@ -142,8 +151,19 @@ export = {
 				return;
 			}
 
-			for (const attachment of pdfAttachments) {
-				await processAttachment(targetMessage, attachment);
+			const updateProgress = async (message: string) => {
+				await interaction.editReply({ content: message });
+			};
+
+			for (let i = 0; i < pdfAttachments.length; i++) {
+				const attachment = pdfAttachments[i];
+				const progress = pdfAttachments.length > 1
+					? `[${i + 1}/${pdfAttachments.length}] `
+					: '';
+
+				await processAttachment(targetMessage, attachment, async (msg) => {
+					await updateProgress(progress + msg);
+				});
 			}
 
 			await interaction.deleteReply();
