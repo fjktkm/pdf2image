@@ -1,12 +1,21 @@
 {
 	"name": "Node.js & TypeScript",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+	"features": {
+		"ghcr.io/devcontainers-extra/features/apt-packages:1": {
+			"packages": "imagemagick,ghostscript"
+		}
+	},
 	"mounts": [
 		{
 			"type": "volume",
 			"target": "${containerWorkspaceFolder}/node_modules"
 		}
 	],
+	"postCreateCommand": {
+		"packages": "npm install",
+		"policy": "sudo cp config/policy.xml /etc/ImageMagick-6/policy.xml"
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
