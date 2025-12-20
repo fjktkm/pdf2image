@@ -1,8 +1,6 @@
 {
-	"name": "pdf2image",
-	"dockerComposeFile": "compose.yaml",
-	"service": "bot",
-	"workspaceFolder": "/workspaces/pdf2image",
+	"name": "Node.js & TypeScript",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
 	"mounts": [
 		{
 			"type": "volume",
