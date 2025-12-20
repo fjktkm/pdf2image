@@ -7,9 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "prod": "pm2-runtime start dist/index.js --name pdf2image",
-    "deploy": "tsx src/deploy-commands.ts",
-    "typecheck": "tsc --noEmit"
+    "prod": "pm2 start dist/index.js --name pdf2image",
+    "deploy": "tsx src/deploy-commands.ts"
   },
   "author": "",
   "license": "ISC",
