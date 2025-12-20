@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import http from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import fs from 'node:fs';
