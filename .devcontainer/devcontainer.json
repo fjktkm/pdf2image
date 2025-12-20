@@ -13,7 +13,7 @@
 		}
 	],
 	"postCreateCommand": {
-		"packages": "npm install",
+		"packages": "sudo chown -R node:node ${containerWorkspaceFolder}/node_modules && npm install",
 		"policy": "sudo cp config/policy.xml /etc/ImageMagick-6/policy.xml"
 	},
 	"customizations": {
@@ -22,5 +22,6 @@
 				"ms-azuretools.vscode-docker"
 			]
 		}
-	}
+	},
+	"remoteUser": "node"
 }
