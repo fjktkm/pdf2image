@@ -1,51 +1,49 @@
 const { ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
-const { exec } = require('child_process');
-const fs = require('fs');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const fs = require('fs/promises');
 const https = require('https');
 const os = require('os');
 const path = require('path');
 
-const downloadPdf = (url, path) => new Promise((resolve, reject) => {
-    const stream = fs.createWriteStream(path);
+const execFileAsync = promisify(execFile);
+
+const downloadPdf = (url, filePath) => new Promise((resolve, reject) => {
+    const file = require('fs').createWriteStream(filePath);
     const request = https.get(url, response => {
         if (response.statusCode < 200 || response.statusCode >= 300) {
             reject(new Error(`Failed to download file, status code: ${response.statusCode}`));
             return;
         }
-        response.pipe(stream);
+        response.pipe(file);
     });
 
     request.on('error', reject);
 
-    stream.on('finish', resolve);
+    file.on('finish', () => {
+        file.close(resolve);
+    });
 
-    stream.on('error', err => {
-        fs.unlink(path, unlinkErr => {
-            if (unlinkErr) {
-                console.error(`Failed to delete file: ${unlinkErr}`);
-            }
-            reject(err);
-        });
+    file.on('error', async (err) => {
+        try {
+            await fs.unlink(filePath);
+        } catch (unlinkErr) {
+            console.error(`Failed to delete file: ${unlinkErr}`);
+        }
+        reject(err);
     });
 });
 
-const convertPdfToWebps = (pdfPath, webpPath) => {
-    const command = `convert -density 150 -alpha remove ${pdfPath} ${webpPath}`;
-
-    return new Promise((resolve, reject) => {
-        exec(command, (error) => {
-            if (error) {
-                const errorMessage = `An error occurred while converting the PDF. Error: ${error}`;
-                reject(new Error(errorMessage));
-                return;
-            }
-            resolve();
-        });
-    });
+const convertPdfToWebps = async (pdfPath, webpPath) => {
+    try {
+        await execFileAsync('convert', ['-density', '150', '-alpha', 'remove', pdfPath, webpPath]);
+    } catch (error) {
+        throw new Error(`An error occurred while converting the PDF. Error: ${error.message}`);
+    }
 };
 
 const sendWebps = async (targetMessage, imageDir) => {
-    const filenames = await fs.promises.readdir(imageDir);
+    const filenames = await fs.readdir(imageDir);
     const files = filenames.map(filename => path.join(imageDir, filename));
     const totalFiles = files.length;
     const firstMessageFiles = (totalFiles - 1) % 9 + 1;
@@ -53,7 +51,7 @@ const sendWebps = async (targetMessage, imageDir) => {
 
     for (let i = 0; i < totalFiles;) {
         const maxFilesInMessage = (i === 0) ? firstMessageFiles : subsequentMessageFiles;
-        const filesToSend = files.slice(i, i + maxFilesInMessage).filter(file => fs.existsSync(file));
+        const filesToSend = files.slice(i, i + maxFilesInMessage);
 
         if (i === 0) {
             await targetMessage.reply({
@@ -70,30 +68,37 @@ const sendWebps = async (targetMessage, imageDir) => {
     }
 };
 
-const cleanUp = (filePath, dirPath) => {
-    if (filePath && fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-    }
-    if (dirPath && fs.existsSync(dirPath)) {
-        fs.rmSync(dirPath, { recursive: true });
+const cleanUp = async (filePath, dirPath) => {
+    try {
+        if (filePath) {
+            await fs.unlink(filePath).catch(() => {});
+        }
+        if (dirPath) {
+            await fs.rm(dirPath, { recursive: true, force: true });
+        }
+    } catch (error) {
+        console.error('Cleanup error:', error);
     }
 };
 
 const processAttachment = async (targetMessage, attachment) => {
+    let pdfPath;
+    let imageDir;
+
     try {
         const originalFilename = path.basename(attachment.name, '.pdf');
-        const imageDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), originalFilename + "_"));
-        const pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
+        imageDir = await fs.mkdtemp(path.join(os.tmpdir(), originalFilename + "_"));
+        pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
         const webpPath = path.join(imageDir, originalFilename + '_page_%03d.webp');
 
         await downloadPdf(attachment.url, pdfPath);
         await convertPdfToWebps(pdfPath, webpPath);
         await sendWebps(targetMessage, imageDir);
-
-        cleanUp(pdfPath, imageDir);
     } catch (error) {
         console.error(`An error occurred while converting the PDF ${attachment.name} to webp. Error:`, error);
         throw new Error(`An error occurred while converting the PDF ${attachment.name} to webp.`);
+    } finally {
+        await cleanUp(pdfPath, imageDir);
     }
 };
 

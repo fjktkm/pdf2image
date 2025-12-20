@@ -4,8 +4,13 @@ const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 
 const server = http.createServer((req, res) => {
-	res.writeHead(200, { 'Content-Type': 'text/plain' });
-	res.end('Discord Bot is running');
+	if (req.url === '/health') {
+		res.writeHead(200, { 'Content-Type': 'application/json' });
+		res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+	} else {
+		res.writeHead(200, { 'Content-Type': 'text/plain' });
+		res.end('Discord Bot is running');
+	}
 });
 
 const port = process.env.PORT || 3000;
