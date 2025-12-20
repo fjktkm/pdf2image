@@ -1,8 +1,9 @@
-const { Events } = require("discord.js");
+import { Events } from 'discord.js';
+import type { Interaction } from 'discord.js';
 
-module.exports = {
+export = {
 	name: Events.InteractionCreate,
-	async execute(interaction) {
+	async execute(interaction: Interaction) {
 		if (!interaction.isMessageContextMenuCommand()) return;
 
 		const command = interaction.client.commands.get(interaction.commandName);

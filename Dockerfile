@@ -16,18 +16,27 @@ COPY config/imagemagick/policy.xml /etc/ImageMagick-6/policy.xml
 
 WORKDIR /app
 
-FROM base AS dependencies
+FROM base AS builder
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+
+RUN npm run build
+
+FROM base AS production
 
 COPY package.json package-lock.json ./
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production
 
-FROM base AS production
-
-COPY --from=dependencies /app/node_modules ./node_modules
-
-COPY . .
+COPY --from=builder /app/dist ./dist
+COPY config ./config
 
 USER node
 

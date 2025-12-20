@@ -5,3 +5,7 @@ node_modules
 .git
 .gitattributes
 .gitignore
+dist
+*.log
+.devcontainer
+.devcontainer.old

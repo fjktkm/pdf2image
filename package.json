@@ -2,11 +2,14 @@
   "name": "pdf2image",
   "version": "1.0.0",
   "description": "PDF を画像に変換してくれる Discord Bot です",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "prod": "pm2-runtime start src/index.js --name pdf2image"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "prod": "pm2-runtime start dist/index.js --name pdf2image",
+    "deploy": "tsx src/deploy-commands.ts",
+    "typecheck": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
@@ -15,7 +18,11 @@
     "pm2": "^6.0.14"
   },
   "devDependencies": {
+    "@types/node": "^25.0.3",
+    "discord-api-types": "^0.38.37",
     "eslint": "^9.39.2",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
