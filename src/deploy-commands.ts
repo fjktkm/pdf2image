@@ -36,7 +36,7 @@ if (!token) {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
 	if (!client.application) {
 		throw new Error('Client application is not available');
 	}
