@@ -12,8 +12,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         imagemagick \
         ghostscript
 
-COPY config/policy.xml /etc/ImageMagick-6/policy.xml
-
 WORKDIR /app
 
 FROM base AS builder

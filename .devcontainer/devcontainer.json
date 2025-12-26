@@ -12,10 +12,7 @@
 			"target": "${containerWorkspaceFolder}/node_modules"
 		}
 	],
-	"postCreateCommand": {
-		"packages": "sudo chown -R node:node ${containerWorkspaceFolder}/node_modules && npm install",
-		"policy": "sudo cp config/policy.xml /etc/ImageMagick-6/policy.xml"
-	},
+	"postCreateCommand": "sudo chown -R node:node ${containerWorkspaceFolder}/node_modules && npm install",
 	"customizations": {
 		"vscode": {
 			"extensions": [
