@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { REST, Routes } from 'discord.js';
+import { REST, Routes, Client, GatewayIntentBits } from 'discord.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,19 +29,20 @@ for (const folder of commandFolders) {
 }
 
 const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
 
 if (!token) {
 	throw new Error('TOKEN environment variable is not set');
 }
 
-if (!clientId) {
-	throw new Error('CLIENT_ID environment variable is not set');
-}
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const rest = new REST({ version: '10' }).setToken(token);
+client.once('ready', async () => {
+	if (!client.application) {
+		throw new Error('Client application is not available');
+	}
+	const clientId = client.application.id;
+	const rest = new REST({ version: '10' }).setToken(token);
 
-(async () => {
 	try {
 		console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
@@ -53,5 +54,10 @@ const rest = new REST({ version: '10' }).setToken(token);
 		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
 		console.error(error);
+	} finally {
+		await client.destroy();
+		process.exit(0);
 	}
-})();
+});
+
+client.login(token);
