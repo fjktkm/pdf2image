@@ -17,7 +17,7 @@ const downloadPdf = (url: string, filePath: string): Promise<void> => new Promis
 	const request = https.get(url, (response: IncomingMessage) => {
 		if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
 			console.error(`[Download] Failed with status code: ${response.statusCode}`);
-			reject(new Error(`Failed to download file, status code: ${response.statusCode}`));
+			reject(new Error(`ファイルのダウンロードに失敗しました。ステータスコード: ${response.statusCode}`));
 			return;
 		}
 		response.pipe(file);
@@ -54,7 +54,7 @@ const convertPdfToWebps = async (pdfPath: string, webpPath: string): Promise<voi
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`[Convert] Failed:`, error);
-		throw new Error(`An error occurred while converting the PDF. Error: ${message}`);
+		throw new Error(`PDFの変換中にエラーが発生しました。エラー: ${message}`);
 	}
 };
 
@@ -72,17 +72,27 @@ const sendWebps = async (targetMessage: Message, imageDir: string): Promise<void
 		const filesToSend = files.slice(i, i + maxFilesInMessage);
 		messageCount++;
 
-		if (i === 0) {
-			await targetMessage.reply({
-				files: filesToSend,
-				allowedMentions: { repliedUser: false }
-			});
-		} else {
-			if ('send' in targetMessage.channel) {
-				await targetMessage.channel.send({
-					files: filesToSend
+		try {
+			if (i === 0) {
+				await targetMessage.reply({
+					files: filesToSend,
+					allowedMentions: { repliedUser: false }
 				});
+			} else {
+				if ('send' in targetMessage.channel) {
+					await targetMessage.channel.send({
+						files: filesToSend
+					});
+				}
 			}
+		} catch (error) {
+			if (error && typeof error === 'object' && 'code' in error && error.code === 50001) {
+				throw new Error(
+					`Botにメッセージ送信権限がありません。\n` +
+					`Botの権限設定を確認してください。`
+				);
+			}
+			throw error;
 		}
 
 		console.log(`[Upload] Sent message ${messageCount} with ${filesToSend.length} images`);
@@ -121,20 +131,20 @@ const processAttachment = async (
 		pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
 		const webpPath = path.join(imageDir, originalFilename + '_page_%03d.webp');
 
-		await updateProgress(`Downloading`);
+		await updateProgress(`ダウンロード中`);
 		await downloadPdf(attachment.url, pdfPath);
 
-		await updateProgress(`Converting`);
+		await updateProgress(`変換中`);
 		await convertPdfToWebps(pdfPath, webpPath);
 
-		await updateProgress(`Uploading`);
+		await updateProgress(`アップロード中`);
 		await sendWebps(targetMessage, imageDir);
 
 		const duration = Date.now() - startTime;
 		console.log(`[Process] Completed processing for: ${attachment.name} in ${duration}ms`);
 	} catch (error) {
 		console.error(`[Process] Failed processing ${attachment.name}:`, error);
-		throw new Error(`An error occurred while converting the PDF ${attachment.name} to webp.`);
+		throw new Error(`PDF ${attachment.name} の変換中にエラーが発生しました。`);
 	} finally {
 		await cleanUp(pdfPath, imageDir);
 	}
@@ -156,7 +166,7 @@ export = {
 			if (!targetMessage) {
 				console.log(`[Command] Target message not found`);
 				await interaction.editReply({
-					content: 'Could not find the target message.'
+					content: '対象のメッセージが見つかりませんでした。'
 				});
 				return;
 			}
@@ -166,7 +176,7 @@ export = {
 			if (attachments.length === 0) {
 				console.log(`[Command] No attachments found`);
 				await interaction.editReply({
-					content: 'No files were attached.'
+					content: 'ファイルが添付されていません。'
 				});
 				return;
 			}
@@ -176,7 +186,7 @@ export = {
 			if (pdfAttachments.length === 0) {
 				console.log(`[Command] No PDF attachments found`);
 				await interaction.editReply({
-					content: 'No PDF files were attached.'
+					content: 'PDFファイルが添付されていません。'
 				});
 				return;
 			}
@@ -202,7 +212,7 @@ export = {
 			console.log(`[Command] convertPDF completed successfully in ${duration}ms`);
 		} catch (error) {
 			console.error('[Command] convertPDF failed:', error);
-			const message = error instanceof Error ? error.message : 'An unknown error occurred';
+			const message = error instanceof Error ? error.message : '不明なエラーが発生しました';
 			await interaction.editReply({
 				content: message
 			});
