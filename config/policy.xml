@@ -2,6 +2,11 @@
 <policymap>
   <policy domain="coder" rights="none" pattern="*" />
   <policy domain="coder" rights="read" pattern="PDF" />
-  <policy domain="coder" rights="read" pattern="PNG" />
   <policy domain="coder" rights="write" pattern="WEBP" />
+  <policy domain="coder" rights="read|write" pattern="PAM" />
+  <policy domain="coder" rights="read|write" pattern="PBM" />
+  <policy domain="coder" rights="read|write" pattern="PGM" />
+  <policy domain="coder" rights="read|write" pattern="PNG" />
+  <policy domain="coder" rights="read|write" pattern="PNM" />
+  <policy domain="coder" rights="read|write" pattern="PPM" />
 </policymap>
