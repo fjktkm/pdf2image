@@ -66,6 +66,10 @@ const sendWebps = async (targetMessage: Message, imageDir: string): Promise<void
 	const firstMessageFiles = (totalFiles - 1) % 9 + 1;
 	const subsequentMessageFiles = 9;
 
+	if (targetMessage.channel.partial) {
+		await targetMessage.channel.fetch();
+	}
+
 	let messageCount = 0;
 	for (let i = 0; i < totalFiles;) {
 		const maxFilesInMessage = (i === 0) ? firstMessageFiles : subsequentMessageFiles;
@@ -86,11 +90,19 @@ const sendWebps = async (targetMessage: Message, imageDir: string): Promise<void
 				}
 			}
 		} catch (error) {
-			if (error && typeof error === 'object' && 'code' in error && error.code === 50001) {
-				throw new Error(
-					`Botにメッセージ送信権限がありません。\n` +
-					`Botの権限設定を確認してください。`
-				);
+			if (error && typeof error === 'object' && 'code' in error) {
+				if (error.code === 50001) {
+					throw new Error(
+						`Botにメッセージ送信権限がありません。\n` +
+						`Botの権限設定を確認してください。`
+					);
+				}
+				if (error.code === 'ChannelNotCached') {
+					throw new Error(
+						`チャンネル情報の取得に失敗しました。\n` +
+						`もう一度お試しください。`
+					);
+				}
 			}
 			throw error;
 		}
