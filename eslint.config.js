@@ -1,19 +1,16 @@
 const js = require('@eslint/js');
+const globals = require('globals');
 
 module.exports = [
+	{
+		ignores: ['dist/**'],
+	},
 	js.configs.recommended,
 	{
 		languageOptions: {
 			ecmaVersion: 2024,
 			sourceType: 'commonjs',
-			globals: {
-				console: 'readonly',
-				process: 'readonly',
-				__dirname: 'readonly',
-				require: 'readonly',
-				module: 'readonly',
-				exports: 'readonly',
-			},
+			globals: globals.node,
 		},
 		rules: {
 			'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS base
+FROM node:26-slim AS base
 
 ENV TZ=Asia/Tokyo \
     NODE_ENV=production

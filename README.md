@@ -21,7 +21,7 @@ PDF ファイルが添付されたメッセージのコンテキストメニュ�
 
 ### 必要なもの
 
-- Node.js 18 以上
+- Node.js 26 以上
 - ImageMagick
 - Ghostscript
 
