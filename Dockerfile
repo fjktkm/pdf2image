@@ -40,4 +40,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["npm", "run", "prod"]
+CMD ["npm", "start"]

@@ -31,9 +31,6 @@ PDF ファイルが添付されたメッセージのコンテキストメニュ�
 # 依存関係のインストール
 npm install
 
-# PM2をグローバルインストール（初回のみ）
-npm install -g pm2
-
 # .envファイルを作成
 cp .env.sample .env
 # .envを編集してDiscordトークンなどを設定
@@ -48,28 +45,8 @@ npm run deploy
 ## 起動方法
 
 ```bash
-# PM2で起動
-npm run prod
-
-# PM2の自動起動設定（サーバー再起動時に自動起動）
-pm2 startup
-pm2 save
-```
-
-## 管理
-
-```bash
-# ログ確認
-pm2 logs pdf2image
-
-# 状態確認
-pm2 status
-
-# 再起動
-pm2 restart pdf2image
-
-# 停止
-pm2 stop pdf2image
+# 起動
+npm start
 ```
 
 ## 更新
@@ -79,7 +56,7 @@ git pull
 npm install
 npm run build
 npm run deploy
-pm2 restart pdf2image
+npm start
 ```
 
 ## 開発
