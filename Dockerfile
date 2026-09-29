@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:26-slim AS builder
+FROM --platform=$BUILDPLATFORM node:26-slim AS builder
 
 WORKDIR /app
 
