@@ -1,6 +1,4 @@
 import 'dotenv/config';
-import http from 'http';
-import type { IncomingMessage, ServerResponse } from 'http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
@@ -28,25 +26,6 @@ declare module 'discord.js' {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection<string, Command>();
-
-const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
-	if (req.url === '/health') {
-		res.writeHead(200, { 'Content-Type': 'application/json' });
-		res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
-	} else if (req.url === '/ready') {
-		const ready = client.isReady();
-		res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
-		res.end(JSON.stringify({ status: ready ? 'ready' : 'not_ready' }));
-	} else {
-		res.writeHead(200, { 'Content-Type': 'text/plain' });
-		res.end('Discord Bot is running');
-	}
-});
-
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-	console.log(`Server running on port ${port}`);
-});
 
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -90,13 +69,6 @@ const shutdown = (signal: NodeJS.Signals): void => {
 	console.log(`Received ${signal}, shutting down`);
 
 	client.destroy();
-	server.close((error) => {
-		if (error) {
-			console.error('Failed to close HTTP server:', error);
-			process.exit(1);
-		}
-		process.exit(0);
-	});
 
 	setTimeout(() => {
 		console.error('Graceful shutdown timed out');

@@ -43,6 +43,4 @@ COPY --chown=1000:1000 config ./config
 
 USER 1000:1000
 
-EXPOSE 3000
-
 CMD ["node", "dist/index.js"]
