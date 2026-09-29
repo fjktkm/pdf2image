@@ -12,8 +12,8 @@
     "dev": "tsx watch src/index.ts",
     "deploy": "tsx src/deploy-commands.ts"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "fjktkm",
+  "license": "MIT",
   "dependencies": {
     "discord.js": "^14.27.0",
     "dotenv": "^18.0.4"

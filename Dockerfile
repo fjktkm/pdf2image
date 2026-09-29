@@ -18,7 +18,7 @@ FROM node:26-slim AS production
 
 LABEL org.opencontainers.image.source="https://github.com/fjktkm/pdf2image" \
       org.opencontainers.image.description="Discord bot that converts PDF attachments to images" \
-      org.opencontainers.image.licenses="ISC"
+      org.opencontainers.image.licenses="MIT"
 
 ENV TZ=Asia/Tokyo \
     NODE_ENV=production \
