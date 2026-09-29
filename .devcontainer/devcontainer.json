@@ -8,11 +8,13 @@
 	},
 	"mounts": [
 		{
+			"source": "node_modules-${devcontainerId}",
 			"type": "volume",
 			"target": "${containerWorkspaceFolder}/node_modules"
 		}
 	],
-	"postCreateCommand": "sudo chown -R node:node ${containerWorkspaceFolder}/node_modules && npm install",
+	"onCreateCommand": "sudo chown -R node:node node_modules",
+	"postCreateCommand": "npm install",
 	"customizations": {
 		"vscode": {
 			"extensions": [
