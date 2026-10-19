@@ -20,7 +20,6 @@ const ja = {
 	GENERIC_ERROR: '変換処理に失敗しました。時間をおいて再試行してください。',
 	TIMEOUT_RETRY: '処理がタイムアウトしました。PDF のページ数を減らして再試行してください。',
 	SELECT_PDF_PLACEHOLDER: '変換する PDF を選択してください',
-	CONVERTING_SELECTED_PDF: '選択した PDF を変換しています。',
 	CONVERSION_COMPLETED: 'PDF 変換が完了しました。',
 	PDF_NOT_SHARED: 'PDF はサイズ上限を超えるため共有できませんでした。',
 } as const;
@@ -42,7 +41,6 @@ const en: Record<MessageKey, string> = {
 	GENERIC_ERROR: 'Conversion failed. Please try again later.',
 	TIMEOUT_RETRY: 'Processing timed out. Please try again with fewer pages.',
 	SELECT_PDF_PLACEHOLDER: 'Select a PDF to convert',
-	CONVERTING_SELECTED_PDF: 'Converting the selected PDF.',
 	CONVERSION_COMPLETED: 'PDF conversion completed.',
 	PDF_NOT_SHARED: 'The PDF could not be shared because it exceeds the size limit.',
 };

@@ -30,6 +30,13 @@ export = {
 		const locale = toLocale(interaction.locale);
 
 		let responder: MessageContextMenuCommandInteraction | StringSelectMenuInteraction = interaction;
+		let menuShown = false;
+		const deleteRepliesAfter = (delayMs: number) => {
+			deleteAfter(delayMs, () => responder.deleteReply());
+			if (menuShown) {
+				deleteAfter(delayMs, () => interaction.deleteReply());
+			}
+		};
 		try {
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -43,16 +50,19 @@ export = {
 			let attachment = pdfAttachments[0]!;
 			if (pdfAttachments.length > 1) {
 				const customId = `PDF:${interaction.id}`;
-				const menu = new StringSelectMenuBuilder()
-					.setCustomId(customId)
-					.setPlaceholder(t(locale, 'SELECT_PDF_PLACEHOLDER'))
-					.addOptions(pdfAttachments.map((pdf) => ({
-						label: (pdf.title ?? pdf.name).slice(0, 100),
-						value: pdf.id,
-					})));
-				const reply = await interaction.editReply({
-					components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)],
-				});
+				const buildMenuRow = (selectedId?: string) => new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+					new StringSelectMenuBuilder()
+						.setCustomId(customId)
+						.setPlaceholder(t(locale, 'SELECT_PDF_PLACEHOLDER'))
+						.setDisabled(selectedId !== undefined)
+						.addOptions(pdfAttachments.map((pdf) => ({
+							label: (pdf.title ?? pdf.name).slice(0, 100),
+							value: pdf.id,
+							default: pdf.id === selectedId,
+						}))),
+				);
+				const reply = await interaction.editReply({ components: [buildMenuRow()] });
+				menuShown = true;
 
 				const selection = await reply.awaitMessageComponent({
 					componentType: ComponentType.StringSelect,
@@ -65,21 +75,19 @@ export = {
 				}
 				responder = selection;
 				attachment = pdfAttachments.find((pdf) => pdf.id === selection.values[0])!;
-				await selection.update({
-					content: t(locale, 'CONVERTING_SELECTED_PDF'),
-					components: [],
-				});
+				await selection.deferReply({ flags: MessageFlags.Ephemeral });
+				await interaction.editReply({ components: [buildMenuRow(attachment.id)] });
 			}
 
 			await processAttachment(attachment, createReplySender(message));
 			await responder.editReply({ content: t(locale, 'CONVERSION_COMPLETED'), components: [] });
-			deleteAfter(NOTICE_LIFETIME_MS, () => responder.deleteReply());
+			deleteRepliesAfter(NOTICE_LIFETIME_MS);
 		} catch (error) {
 			console.error('[Command] PDF failed:', error);
 			const userMessage = resolveUserMessage(error, locale);
 			try {
 				await responder.editReply({ content: userMessage, components: [] });
-				deleteAfter(ERROR_LIFETIME_MS, () => responder.deleteReply());
+				deleteRepliesAfter(ERROR_LIFETIME_MS);
 			} catch (replyError) {
 				console.error('[Command] editReply failed, trying followUp:', replyError);
 				try {
