@@ -35,8 +35,8 @@ export = {
 				const menu = new StringSelectMenuBuilder()
 					.setCustomId(customId)
 					.setPlaceholder('変換するPDFを選択してください')
-					.addOptions(pdfAttachments.map((pdf, index) => ({
-						label: `${index + 1}. ${pdf.name}`.slice(0, 100),
+					.addOptions(pdfAttachments.map((pdf) => ({
+						label: (pdf.title ?? pdf.name).slice(0, 100),
 						value: pdf.id,
 					})));
 				const reply = await interaction.editReply({
