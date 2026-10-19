@@ -5,7 +5,7 @@ Discord で PDF ファイルがプレビューできたら便利なのになー�
 
 ## 招待 URL
 
-https://discord.com/api/oauth2/authorize?client_id=1103559284572291162&permissions=0&scope=bot%20applications.commands
+https://discord.com/api/oauth2/authorize?client_id=1103559284572291162&permissions=274878008320&scope=bot%20applications.commands
 
 ## 使い方
 
