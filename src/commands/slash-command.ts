@@ -55,7 +55,7 @@ export = {
 
 			await processAttachment(attachment, send, sharePdf);
 			if (!pdfMessage) {
-				await interaction.followUp({ content: 'PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
+				await interaction.followUp({ content: '⚠️ PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
 			}
 		} catch (error) {
 			console.error('[Command] pdf failed:', error);

@@ -56,13 +56,13 @@ export = {
 				responder = selection;
 				attachment = pdfAttachments.find((pdf) => pdf.id === selection.values[0])!;
 				await selection.update({
-					content: '選択したPDFを変換しています。',
+					content: '⏳ 選択したPDFを変換しています。',
 					components: [],
 				});
 			}
 
 			await processAttachment(attachment, createReplySender(message));
-			await responder.editReply({ content: 'PDF変換が完了しました。', components: [] });
+			await responder.editReply({ content: '✅ PDF変換が完了しました。', components: [] });
 			setTimeout(() => {
 				responder.deleteReply().catch(() => { });
 			}, COMPLETION_MESSAGE_LIFETIME_MS);
