@@ -16,10 +16,7 @@ const CONVERT_TIMEOUT_MS = 120_000;
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_BASE_FILENAME_LENGTH = 64;
 
-const LOW_DENSITY = 100;
-const MEDIUM_DENSITY = 120;
-const DEFAULT_DENSITY = 150;
-const CONVERT_BATCH_SIZE = 32;
+const DPI = 150;
 
 const CHECK_BOT_PERMISSIONS_MESSAGE = 'Botの権限設定を確認してください。';
 const GENERIC_ERROR = '変換処理に失敗しました。時間をおいて再試行してください。';
@@ -81,20 +78,10 @@ export const isPdfAttachment = (attachment: Attachment): boolean => {
 const sanitizeBaseFilename = (filename: string): string => {
 	const base = filename.replace(/\.[^.]*$/, '');
 	const sanitized = base
-		.replace(/[\\/:*?"<>|]/g, '_')
+		.replace(/[\\/:*?"<>|[\]]/g, '_')
 		.replace(/[\x00-\x1F\x7F]/g, '_')
 		.trim();
 	return (sanitized || 'file').slice(0, MAX_BASE_FILENAME_LENGTH);
-};
-
-const chooseDensity = (sizeBytes: number): number => {
-	if (sizeBytes >= 60 * 1024 * 1024) {
-		return LOW_DENSITY;
-	}
-	if (sizeBytes >= 30 * 1024 * 1024) {
-		return MEDIUM_DENSITY;
-	}
-	return DEFAULT_DENSITY;
 };
 
 const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Promise<void> => {
@@ -142,96 +129,48 @@ const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Pr
 	});
 };
 
-const isResourceLimitError = (error: unknown): boolean => {
-	const message = `${error instanceof Error ? error.message : ''}\n${(error as { stderr?: unknown })?.stderr ?? ''}`;
-	return /cache resources exhausted|TooManyExceptions|IDAT: Too much image data/i.test(message);
-};
-
-const listGeneratedWebps = async (imageDir: string): Promise<string[]> => {
-	return (await fs.readdir(imageDir))
-		.filter((file) => file.endsWith('.webp'))
-		.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-		.map((file) => path.join(imageDir, file));
-};
-
-const clearGeneratedWebps = async (imageDir: string): Promise<void> => {
-	await Promise.all(
-		(await fs.readdir(imageDir))
-			.filter((file) => file.endsWith('.webp'))
-			.map((file) => fs.unlink(path.join(imageDir, file)).catch(() => { })),
-	);
-};
-
 const getPdfPageCount = async (pdfPath: string, deadlineAt: number): Promise<number> => {
-	const { stdout } = await execFileAsync('identify', ['-ping', '-format', '%p\n', pdfPath], {
+	const { stdout } = await execFileAsync('vipsheader', ['-f', 'n-pages', pdfPath], {
 		timeout: getStepTimeoutMs(deadlineAt, CONVERT_TIMEOUT_MS),
 	});
-	const pageCount = String(stdout)
-		.split('\n')
-		.filter((line) => line.trim() !== '')
-		.length;
-	return Math.max(pageCount, 1);
+	const pageCount = Number.parseInt(String(stdout), 10);
+	if (!Number.isInteger(pageCount) || pageCount < 1) {
+		throwAppError('UPLOAD_GENERATION_FAILED');
+	}
+	return pageCount;
 };
 
 const convertPdfToWebps = async (
 	pdfPath: string,
 	imageDir: string,
 	originalFilename: string,
-	initialDensity: number,
 	deadlineAt: number,
 ): Promise<string[]> => {
-	const outputPattern = path.join(imageDir, `${originalFilename}_page_%03d.webp`);
+	const pageCount = await getPdfPageCount(pdfPath, deadlineAt);
+	const files = Array.from({ length: pageCount }, (_, page) =>
+		path.join(imageDir, `${originalFilename}_page_${String(page).padStart(3, '0')}.webp`));
 
-	const runConvert = async (density: number): Promise<void> => {
-		await execFileAsync('convert', ['-density', String(density), '-alpha', 'remove', pdfPath, outputPattern], {
-			timeout: getStepTimeoutMs(deadlineAt, CONVERT_TIMEOUT_MS),
-		});
-	};
-
-	const runBatchedConvert = async (density: number): Promise<void> => {
-		const pageCount = await getPdfPageCount(pdfPath, deadlineAt);
-		for (let start = 0; start < pageCount; start += CONVERT_BATCH_SIZE) {
-			const end = Math.min(start + CONVERT_BATCH_SIZE - 1, pageCount - 1);
-			await execFileAsync(
-				'convert',
-				[
-					'-density',
-					String(density),
-					'-alpha',
-					'remove',
-					`${pdfPath}[${start}-${end}]`,
-					'-scene',
-					String(start),
-					outputPattern,
-				],
-				{ timeout: getStepTimeoutMs(deadlineAt, CONVERT_TIMEOUT_MS) },
-			);
-		}
-	};
-
-	try {
-		await runConvert(initialDensity);
-		return listGeneratedWebps(imageDir);
-	} catch (error) {
-		const retryDensity = initialDensity > MEDIUM_DENSITY ? MEDIUM_DENSITY : (initialDensity > LOW_DENSITY ? LOW_DENSITY : null);
-		if (retryDensity === null || !isResourceLimitError(error)) {
-			console.error('[Convert] Failed:', error);
-			throw error;
-		}
-		await clearGeneratedWebps(imageDir);
-		try {
-			await runConvert(retryDensity);
-			return listGeneratedWebps(imageDir);
-		} catch (retryError) {
-			if (!isResourceLimitError(retryError)) {
-				console.error('[Convert] Failed after retry:', retryError);
-				throw retryError;
+	let nextPage = 0;
+	let failed = false;
+	const worker = async (): Promise<void> => {
+		while (!failed && nextPage < pageCount) {
+			const page = nextPage++;
+			try {
+				await execFileAsync(
+					'vips',
+					['flatten', `${pdfPath}[page=${page},dpi=${DPI}]`, files[page]!, '--background', '255'],
+					{ timeout: getStepTimeoutMs(deadlineAt, CONVERT_TIMEOUT_MS) },
+				);
+			} catch (error) {
+				failed = true;
+				console.error(`[Convert] Failed on page ${page}:`, error);
+				throw error;
 			}
-			await clearGeneratedWebps(imageDir);
-			await runBatchedConvert(retryDensity);
-			return listGeneratedWebps(imageDir);
 		}
-	}
+	};
+	await Promise.all(Array.from({ length: Math.min(os.availableParallelism(), pageCount) }, worker));
+
+	return files;
 };
 
 export type SendFiles = (files: string[], index: number) => Promise<unknown>;
@@ -305,7 +244,7 @@ export const processAttachment = async (
 
 		await downloadPdf(attachment.url, pdfPath, getStepTimeoutMs(deadlineAt, DOWNLOAD_TIMEOUT_MS));
 		await onDownloaded?.(pdfPath);
-		const generatedFiles = await convertPdfToWebps(pdfPath, imageDir, originalFilename, chooseDensity(attachment.size), deadlineAt);
+		const generatedFiles = await convertPdfToWebps(pdfPath, imageDir, originalFilename, deadlineAt);
 		await sendWebps(send, generatedFiles, deadlineAt);
 	} catch (error) {
 		console.error(`[Process] Failed processing ${attachment.name}:`, error);

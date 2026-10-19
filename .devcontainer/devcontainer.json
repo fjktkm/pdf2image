@@ -3,7 +3,7 @@
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:26-bookworm",
 	"features": {
 		"ghcr.io/devcontainers-extra/features/apt-packages:1": {
-			"packages": "imagemagick,ghostscript"
+			"packages": "libvips-tools"
 		}
 	},
 	"mounts": [

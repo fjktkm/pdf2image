@@ -21,15 +21,12 @@ LABEL org.opencontainers.image.source="https://github.com/fjktkm/pdf2image" \
       org.opencontainers.image.licenses="MIT"
 
 ENV TZ=Asia/Tokyo \
-    NODE_ENV=production \
-    MAGICK_CONFIGURE_PATH=/app/config
+    NODE_ENV=production
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ghostscript \
-        imagemagick
+    apt-get install -y --no-install-recommends libvips-tools
 
 WORKDIR /app
 
@@ -39,7 +36,6 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 
 COPY --chown=1000:1000 --from=builder /app/dist ./dist
-COPY --chown=1000:1000 config ./config
 
 USER 1000:1000
 
