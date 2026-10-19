@@ -1,11 +1,15 @@
 import { execFile } from 'child_process';
 import {
+	ActionRowBuilder,
 	ApplicationCommandType,
+	ComponentType,
 	ContextMenuCommandBuilder,
 	MessageFlags,
+	StringSelectMenuBuilder,
 	type Attachment,
 	type Message,
 	type MessageContextMenuCommandInteraction,
+	type StringSelectMenuInteraction,
 } from 'discord.js';
 import { createWriteStream } from 'fs';
 import fs from 'fs/promises';
@@ -21,8 +25,8 @@ const execFileAsync = promisify(execFile);
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 const CONVERT_TIMEOUT_MS = 120_000;
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
-const DISCORD_API_TIMEOUT_MS = 30_000;
 const MAX_BASE_FILENAME_LENGTH = 64;
+const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
 
 const LOW_DENSITY = 100;
 const MEDIUM_DENSITY = 120;
@@ -35,7 +39,6 @@ const TIMEOUT_RETRY = '処理がタイムアウトしました。PDFのページ
 
 const APP_ERROR_MESSAGES = {
 	PROCESS_TIMEOUT: '処理時間が上限を超えました。PDFのページ数を減らして再試行してください。',
-	TARGET_MESSAGE_NOT_FOUND: '対象のメッセージが見つかりませんでした。',
 	NO_ATTACHMENTS: 'ファイルが添付されていません。',
 	NO_PDF_ATTACHMENTS: 'PDFファイルが添付されていません。',
 	DOWNLOAD_FAILED: 'PDFのダウンロードに失敗しました。時間をおいて再試行してください。',
@@ -84,11 +87,11 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 const isPdfAttachment = (attachment: Attachment): boolean => {
 	const contentType = attachment.contentType?.toLowerCase();
-	return contentType?.startsWith('application/pdf') || attachment.name?.toLowerCase().endsWith('.pdf') || false;
+	return contentType?.startsWith('application/pdf') || attachment.name.toLowerCase().endsWith('.pdf');
 };
 
-const sanitizeBaseFilename = (filename?: string): string => {
-	const base = (filename ?? 'file.pdf').replace(/\.[^.]*$/, '');
+const sanitizeBaseFilename = (filename: string): string => {
+	const base = filename.replace(/\.[^.]*$/, '');
 	const sanitized = base
 		.replace(/[\\/:*?"<>|]/g, '_')
 		.replace(/[\x00-\x1F\x7F]/g, '_')
@@ -344,34 +347,63 @@ export = {
 		const guildName = interaction.guild?.name ?? 'DM';
 		console.log(`[Command] convertPDF executed in ${guildName} by ${interaction.user.tag}`);
 
+		let responder: MessageContextMenuCommandInteraction | StringSelectMenuInteraction = interaction;
 		try {
-			await withTimeout(interaction.deferReply({ flags: MessageFlags.Ephemeral }), DISCORD_API_TIMEOUT_MS);
+			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-			const targetMessage = interaction.options.getMessage('message');
-			if (!targetMessage) {
-				throwAppError('TARGET_MESSAGE_NOT_FOUND');
-			}
-			const message = targetMessage!;
+			const message = interaction.targetMessage;
 
 			const pdfAttachments = Array.from(message.attachments.values()).filter(isPdfAttachment);
 			if (pdfAttachments.length === 0) {
 				throwAppError(message.attachments.size === 0 ? 'NO_ATTACHMENTS' : 'NO_PDF_ATTACHMENTS');
 			}
 
-			for (const attachment of pdfAttachments) {
-				await processAttachment(message, attachment);
+			let attachments = pdfAttachments;
+			if (pdfAttachments.length > 1) {
+				const customId = `convertPDF:${interaction.id}`;
+				const menu = new StringSelectMenuBuilder()
+					.setCustomId(customId)
+					.setPlaceholder('変換するPDFを選択してください')
+					.setMinValues(1)
+					.setMaxValues(pdfAttachments.length)
+					.addOptions(pdfAttachments.map((pdf, index) => ({
+						label: `${index + 1}. ${pdf.name}`.slice(0, 100),
+						value: pdf.id,
+					})));
+				const reply = await interaction.editReply({
+					components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)],
+				});
+
+				const selection = await reply.awaitMessageComponent({
+					componentType: ComponentType.StringSelect,
+					filter: (component) => component.customId === customId && component.user.id === interaction.user.id,
+					time: SELECTION_TIMEOUT_MS,
+				}).catch(() => undefined);
+				if (!selection) {
+					await interaction.deleteReply().catch(() => { });
+					return;
+				}
+				responder = selection;
+				attachments = pdfAttachments.filter((pdf) => selection.values.includes(pdf.id));
+				await selection.update({
+					content: `選択した${attachments.length}件のPDFを変換しています。`,
+					components: [],
+				});
 			}
 
-			await withTimeout(interaction.editReply({ content: `${pdfAttachments.length}件のPDF変換が完了しました。` }), DISCORD_API_TIMEOUT_MS);
+			for (const attachment of attachments) {
+				await processAttachment(message, attachment);
+			}
+			await responder.editReply({ content: `${attachments.length}件のPDF変換が完了しました。`, components: [] });
 		} catch (error) {
 			console.error('[Command] convertPDF failed:', error);
 			const userMessage = resolveUserMessage(error);
 			try {
-				await withTimeout(interaction.editReply({ content: userMessage }), DISCORD_API_TIMEOUT_MS);
+				await responder.editReply({ content: userMessage, components: [] });
 			} catch (replyError) {
 				console.error('[Command] editReply failed, trying followUp:', replyError);
 				try {
-					await withTimeout(interaction.followUp({ content: userMessage, flags: MessageFlags.Ephemeral }), DISCORD_API_TIMEOUT_MS);
+					await responder.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
 				} catch (followUpError) {
 					console.error('[Command] followUp also failed:', followUpError);
 				}
