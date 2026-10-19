@@ -358,14 +358,12 @@ export = {
 				throwAppError(message.attachments.size === 0 ? 'NO_ATTACHMENTS' : 'NO_PDF_ATTACHMENTS');
 			}
 
-			let attachments = pdfAttachments;
+			let attachment = pdfAttachments[0]!;
 			if (pdfAttachments.length > 1) {
 				const customId = `convertPDF:${interaction.id}`;
 				const menu = new StringSelectMenuBuilder()
 					.setCustomId(customId)
 					.setPlaceholder('変換するPDFを選択してください')
-					.setMinValues(1)
-					.setMaxValues(pdfAttachments.length)
 					.addOptions(pdfAttachments.map((pdf, index) => ({
 						label: `${index + 1}. ${pdf.name}`.slice(0, 100),
 						value: pdf.id,
@@ -384,17 +382,15 @@ export = {
 					return;
 				}
 				responder = selection;
-				attachments = pdfAttachments.filter((pdf) => selection.values.includes(pdf.id));
+				attachment = pdfAttachments.find((pdf) => pdf.id === selection.values[0])!;
 				await selection.update({
-					content: `選択した${attachments.length}件のPDFを変換しています。`,
+					content: '選択したPDFを変換しています。',
 					components: [],
 				});
 			}
 
-			for (const attachment of attachments) {
-				await processAttachment(message, attachment);
-			}
-			await responder.editReply({ content: `${attachments.length}件のPDF変換が完了しました。`, components: [] });
+			await processAttachment(message, attachment);
+			await responder.editReply({ content: 'PDF変換が完了しました。', components: [] });
 		} catch (error) {
 			console.error('[Command] convertPDF failed:', error);
 			const userMessage = resolveUserMessage(error);
