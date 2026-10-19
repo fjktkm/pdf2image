@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import type { ChatInputCommandInteraction, ContextMenuCommandInteraction, ClientEvents } from 'discord.js';
+import { logger } from './logger';
 
 interface Command {
 	data: {
@@ -36,7 +37,7 @@ for (const file of commandFiles) {
 	if ('data' in command && 'execute' in command) {
 		client.commands.set(command.data.name, command);
 	} else {
-		console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		logger.warn({ filePath }, 'command is missing a required "data" or "execute" property');
 	}
 }
 
@@ -62,12 +63,12 @@ let shuttingDown = false;
 const shutdown = (signal: NodeJS.Signals): void => {
 	if (shuttingDown) return;
 	shuttingDown = true;
-	console.log(`Received ${signal}, shutting down`);
+	logger.info({ signal }, 'shutting down');
 
 	client.destroy();
 
 	setTimeout(() => {
-		console.error('Graceful shutdown timed out');
+		logger.error('graceful shutdown timed out');
 		process.exit(1);
 	}, 10_000).unref();
 };

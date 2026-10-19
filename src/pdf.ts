@@ -9,6 +9,7 @@ import path from 'path';
 import { pipeline } from 'stream/promises';
 import { promisify } from 'util';
 import { t, type Locale, type MessageKey } from './i18n';
+import { logger as defaultLogger, type Logger } from './logger';
 
 const execFileAsync = promisify(execFile);
 
@@ -38,6 +39,13 @@ const APP_ERROR_CODES = [
 type AppErrorCode = (typeof APP_ERROR_CODES)[number];
 
 const isAppErrorCode = (code: unknown): code is AppErrorCode => APP_ERROR_CODES.includes(code as AppErrorCode);
+
+const USER_ERROR_CODES: readonly AppErrorCode[] = ['NO_ATTACHMENTS', 'NO_PDF_ATTACHMENTS'];
+
+export const isUserError = (error: unknown): boolean => {
+	const code = (error as { code?: unknown } | null)?.code;
+	return isAppErrorCode(code) && USER_ERROR_CODES.includes(code);
+};
 
 const DISCORD_ERROR_MAP: Record<string, AppErrorCode> = {
 	'50001': 'BOT_SEND_PERMISSION',
@@ -85,7 +93,7 @@ const sanitizeBaseFilename = (filename: string): string => {
 	return (sanitized || 'file').slice(0, MAX_BASE_FILENAME_LENGTH);
 };
 
-const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Promise<void> => {
+const downloadPdf = async (url: string, filePath: string, timeoutMs: number, log: Logger): Promise<void> => {
 	const cleanupFile = async (): Promise<void> => {
 		try {
 			await fs.unlink(filePath);
@@ -98,7 +106,7 @@ const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Pr
 		const request = https.get(url, (response: IncomingMessage) => {
 			void (async () => {
 				if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
-					console.error(`[Download] Failed with status code: ${response.statusCode}`, { statusCode: response.statusCode });
+					log.warn({ statusCode: response.statusCode }, 'pdf download failed');
 					response.resume();
 					await cleanupFile();
 					reject({ code: 'DOWNLOAD_FAILED' as const });
@@ -110,7 +118,6 @@ const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Pr
 					await pipeline(response, file);
 					resolve();
 				} catch (error) {
-					console.error('[Download] Stream error:', error);
 					await cleanupFile();
 					reject(error);
 				}
@@ -124,7 +131,6 @@ const downloadPdf = async (url: string, filePath: string, timeoutMs: number): Pr
 		});
 
 		request.on('error', (error) => {
-			console.error('[Download] Request error:', error);
 			void cleanupFile().finally(() => reject(error));
 		});
 	});
@@ -146,6 +152,7 @@ const convertPdfToWebps = async (
 	imageDir: string,
 	originalFilename: string,
 	deadlineAt: number,
+	log: Logger,
 ): Promise<string[]> => {
 	const pageCount = await getPdfPageCount(pdfPath, deadlineAt);
 	const files = Array.from({ length: pageCount }, (_, page) =>
@@ -164,7 +171,7 @@ const convertPdfToWebps = async (
 				);
 			} catch (error) {
 				failed = true;
-				console.error(`[Convert] Failed on page ${page}:`, error);
+				log.warn({ page }, 'page conversion failed');
 				throw error;
 			}
 		}
@@ -239,7 +246,9 @@ export const processAttachment = async (
 	attachment: Attachment,
 	send: SendFiles,
 	onDownloaded?: (pdfPath: string) => Promise<void>,
+	log: Logger = defaultLogger,
 ): Promise<void> => {
+	const startedAt = Date.now();
 	let pdfPath: string | undefined;
 	let imageDir: string | undefined;
 	const deadlineAt = Date.now() + PROCESS_TIMEOUT_MS;
@@ -249,13 +258,11 @@ export const processAttachment = async (
 		imageDir = await fs.mkdtemp(path.join(os.tmpdir(), `${originalFilename}_`));
 		pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
 
-		await downloadPdf(attachment.url, pdfPath, getStepTimeoutMs(deadlineAt, DOWNLOAD_TIMEOUT_MS));
+		await downloadPdf(attachment.url, pdfPath, getStepTimeoutMs(deadlineAt, DOWNLOAD_TIMEOUT_MS), log);
 		await onDownloaded?.(pdfPath);
-		const generatedFiles = await convertPdfToWebps(pdfPath, imageDir, originalFilename, deadlineAt);
+		const generatedFiles = await convertPdfToWebps(pdfPath, imageDir, originalFilename, deadlineAt, log);
 		await sendWebps(send, generatedFiles, deadlineAt);
-	} catch (error) {
-		console.error(`[Process] Failed processing ${attachment.name}:`, error);
-		throw error;
+		log.info({ pages: generatedFiles.length, durationMs: Date.now() - startedAt }, 'pdf converted');
 	} finally {
 		try {
 			await Promise.all([
@@ -263,7 +270,7 @@ export const processAttachment = async (
 				imageDir ? fs.rm(imageDir, { recursive: true, force: true }) : undefined,
 			]);
 		} catch (cleanupError) {
-			console.error('[Cleanup] Error:', cleanupError);
+			log.warn({ err: cleanupError }, 'cleanup failed');
 		}
 	}
 };

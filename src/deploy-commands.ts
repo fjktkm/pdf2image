@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { REST, Routes, Client, GatewayIntentBits } from 'discord.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { logger } from './logger';
 
 interface Command {
 	data: {
@@ -20,7 +21,7 @@ for (const file of commandFiles) {
 	if ('data' in command && 'execute' in command) {
 		commands.push(command.data.toJSON());
 	} else {
-		console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		logger.warn({ filePath }, 'command is missing a required "data" or "execute" property');
 	}
 }
 
@@ -40,19 +41,19 @@ client.once('clientReady', async () => {
 	const rest = new REST({ version: '10' }).setToken(token);
 
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		logger.info({ count: commands.length }, 'refreshing application commands');
 
 		const data = await rest.put(
 			Routes.applicationCommands(clientId),
 			{ body: commands },
 		) as unknown[];
 
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		logger.info({ count: data.length }, 'reloaded application commands');
 	} catch (error) {
-		console.error(error);
+		logger.error({ err: error }, 'failed to reload application commands');
+		process.exitCode = 1;
 	} finally {
 		await client.destroy();
-		process.exit(0);
 	}
 });
 

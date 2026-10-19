@@ -5,6 +5,7 @@ import {
 	ERROR_LIFETIME_MS,
 	isFileTooLargeError,
 	isPdfAttachment,
+	isUserError,
 	NOTICE_LIFETIME_MS,
 	processAttachment,
 	resolveUserMessage,
@@ -12,6 +13,7 @@ import {
 	type SendFiles,
 } from '../pdf';
 import { t, toLocale } from '../i18n';
+import { logger } from '../logger';
 
 export = {
 	data: new SlashCommandBuilder()
@@ -24,8 +26,13 @@ export = {
 			.setDescriptionLocalizations({ ja: '変換する PDF ファイル' })
 			.setRequired(true)),
 	async execute(interaction: ChatInputCommandInteraction) {
-		const guildName = interaction.guild?.name ?? 'DM';
-		console.log(`[Command] pdf executed in ${guildName} by ${interaction.user.tag}`);
+		const log = logger.child({
+			command: 'pdf',
+			interactionId: interaction.id,
+			guildId: interaction.guildId,
+			userId: interaction.user.id,
+		});
+		log.info('command executed');
 		const locale = toLocale(interaction.locale);
 
 		let responded = false;
@@ -68,13 +75,14 @@ export = {
 				return sent;
 			};
 
-			await processAttachment(attachment, send, sharePdf);
+			await processAttachment(attachment, send, sharePdf, log);
 			if (!pdfMessage) {
+				log.warn({ sizeBytes: attachment.size, limitBytes: interaction.attachmentSizeLimit }, 'pdf not shared');
 				const notice = await interaction.followUp({ content: t(locale, 'PDF_NOT_SHARED'), flags: MessageFlags.Ephemeral });
 				deleteAfter(NOTICE_LIFETIME_MS, () => interaction.deleteReply(notice));
 			}
 		} catch (error) {
-			console.error('[Command] pdf failed:', error);
+			log[isUserError(error) ? 'warn' : 'error']({ err: error }, 'command failed');
 			const userMessage = resolveUserMessage(error, locale);
 			try {
 				if (!interaction.deferred) {
@@ -88,7 +96,7 @@ export = {
 				const sent = await interaction.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
 				deleteAfter(ERROR_LIFETIME_MS, () => interaction.deleteReply(sent));
 			} catch (replyError) {
-				console.error('[Command] pdf error reply failed:', replyError);
+				log.error({ err: replyError }, 'error reply failed');
 			}
 		}
 	},

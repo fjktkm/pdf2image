@@ -13,20 +13,27 @@ import {
 	deleteAfter,
 	ERROR_LIFETIME_MS,
 	isPdfAttachment,
+	isUserError,
 	NOTICE_LIFETIME_MS,
 	processAttachment,
 	resolveUserMessage,
 	throwAppError,
 } from '../pdf';
 import { t, toLocale } from '../i18n';
+import { logger } from '../logger';
 
 const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
 
 export = {
 	data: new ContextMenuCommandBuilder().setName('PDF').setType(ApplicationCommandType.Message),
 	async execute(interaction: MessageContextMenuCommandInteraction) {
-		const guildName = interaction.guild?.name ?? 'DM';
-		console.log(`[Command] PDF executed in ${guildName} by ${interaction.user.tag}`);
+		const log = logger.child({
+			command: 'PDF',
+			interactionId: interaction.id,
+			guildId: interaction.guildId,
+			userId: interaction.user.id,
+		});
+		log.info('command executed');
 		const locale = toLocale(interaction.locale);
 
 		let responder: MessageContextMenuCommandInteraction | StringSelectMenuInteraction = interaction;
@@ -79,22 +86,22 @@ export = {
 				await interaction.editReply({ components: [buildMenuRow(attachment.id)] });
 			}
 
-			await processAttachment(attachment, createReplySender(message));
+			await processAttachment(attachment, createReplySender(message), undefined, log);
 			await responder.editReply({ content: t(locale, 'CONVERSION_COMPLETED'), components: [] });
 			deleteRepliesAfter(NOTICE_LIFETIME_MS);
 		} catch (error) {
-			console.error('[Command] PDF failed:', error);
+			log[isUserError(error) ? 'warn' : 'error']({ err: error }, 'command failed');
 			const userMessage = resolveUserMessage(error, locale);
 			try {
 				await responder.editReply({ content: userMessage, components: [] });
 				deleteRepliesAfter(ERROR_LIFETIME_MS);
 			} catch (replyError) {
-				console.error('[Command] editReply failed, trying followUp:', replyError);
+				log.warn({ err: replyError }, 'editReply failed, trying followUp');
 				try {
 					const sent = await responder.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
 					deleteAfter(ERROR_LIFETIME_MS, () => responder.deleteReply(sent));
 				} catch (followUpError) {
-					console.error('[Command] followUp also failed:', followUpError);
+					log.error({ err: followUpError }, 'followUp failed');
 				}
 			}
 		}
