@@ -11,6 +11,7 @@ import {
 import { createReplySender, isPdfAttachment, processAttachment, resolveUserMessage, throwAppError } from '../pdf';
 
 const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
+const COMPLETION_MESSAGE_LIFETIME_MS = 60_000;
 
 export = {
 	data: new ContextMenuCommandBuilder().setName('PDF').setType(ApplicationCommandType.Message),
@@ -62,6 +63,9 @@ export = {
 
 			await processAttachment(attachment, createReplySender(message));
 			await responder.editReply({ content: 'PDF変換が完了しました。', components: [] });
+			setTimeout(() => {
+				responder.deleteReply().catch(() => { });
+			}, COMPLETION_MESSAGE_LIFETIME_MS);
 		} catch (error) {
 			console.error('[Command] PDF failed:', error);
 			const userMessage = resolveUserMessage(error);
