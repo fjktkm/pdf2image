@@ -1,6 +1,6 @@
 {
   "name": "pdf2image",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PDF を画像に変換してくれる Discord Bot です",
   "main": "dist/index.js",
   "engines": {
