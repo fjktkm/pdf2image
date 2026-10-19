@@ -18,6 +18,7 @@ import {
 	resolveUserMessage,
 	throwAppError,
 } from '../pdf';
+import { t, toLocale } from '../i18n';
 
 const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
 
@@ -26,6 +27,7 @@ export = {
 	async execute(interaction: MessageContextMenuCommandInteraction) {
 		const guildName = interaction.guild?.name ?? 'DM';
 		console.log(`[Command] PDF executed in ${guildName} by ${interaction.user.tag}`);
+		const locale = toLocale(interaction.locale);
 
 		let responder: MessageContextMenuCommandInteraction | StringSelectMenuInteraction = interaction;
 		try {
@@ -43,7 +45,7 @@ export = {
 				const customId = `PDF:${interaction.id}`;
 				const menu = new StringSelectMenuBuilder()
 					.setCustomId(customId)
-					.setPlaceholder('変換するPDFを選択してください')
+					.setPlaceholder(t(locale, 'SELECT_PDF_PLACEHOLDER'))
 					.addOptions(pdfAttachments.map((pdf) => ({
 						label: (pdf.title ?? pdf.name).slice(0, 100),
 						value: pdf.id,
@@ -64,17 +66,17 @@ export = {
 				responder = selection;
 				attachment = pdfAttachments.find((pdf) => pdf.id === selection.values[0])!;
 				await selection.update({
-					content: '選択したPDFを変換しています。',
+					content: t(locale, 'CONVERTING_SELECTED_PDF'),
 					components: [],
 				});
 			}
 
 			await processAttachment(attachment, createReplySender(message));
-			await responder.editReply({ content: 'PDF変換が完了しました。', components: [] });
+			await responder.editReply({ content: t(locale, 'CONVERSION_COMPLETED'), components: [] });
 			deleteAfter(NOTICE_LIFETIME_MS, () => responder.deleteReply());
 		} catch (error) {
 			console.error('[Command] PDF failed:', error);
-			const userMessage = resolveUserMessage(error);
+			const userMessage = resolveUserMessage(error, locale);
 			try {
 				await responder.editReply({ content: userMessage, components: [] });
 				deleteAfter(ERROR_LIFETIME_MS, () => responder.deleteReply());

@@ -8,6 +8,7 @@ import os from 'os';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { promisify } from 'util';
+import { t, type Locale, type MessageKey } from './i18n';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,25 +21,23 @@ export const ERROR_LIFETIME_MS = 60_000;
 
 const DPI = 150;
 
-const CHECK_BOT_PERMISSIONS_MESSAGE = 'Botの権限設定を確認してください。';
-const GENERIC_ERROR = '変換処理に失敗しました。時間をおいて再試行してください。';
-const TIMEOUT_RETRY = '処理がタイムアウトしました。PDFのページ数を減らして再試行してください。';
+const APP_ERROR_CODES = [
+	'PROCESS_TIMEOUT',
+	'NO_ATTACHMENTS',
+	'NO_PDF_ATTACHMENTS',
+	'DOWNLOAD_FAILED',
+	'UPLOAD_GENERATION_FAILED',
+	'CHANNEL_SEND_UNAVAILABLE',
+	'BOT_SEND_PERMISSION',
+	'BOT_REQUIRED_PERMISSION',
+	'IMAGE_TOO_LARGE',
+	'CHANNEL_INFO_FAILED',
+	'RATE_LIMIT',
+] as const satisfies readonly MessageKey[];
 
-const APP_ERROR_MESSAGES = {
-	PROCESS_TIMEOUT: '処理時間が上限を超えました。PDFのページ数を減らして再試行してください。',
-	NO_ATTACHMENTS: 'ファイルが添付されていません。',
-	NO_PDF_ATTACHMENTS: 'PDFファイルが添付されていません。',
-	DOWNLOAD_FAILED: 'PDFのダウンロードに失敗しました。時間をおいて再試行してください。',
-	UPLOAD_GENERATION_FAILED: '画像の生成に失敗しました。別のPDFで再試行してください。',
-	CHANNEL_SEND_UNAVAILABLE: `このチャンネルにはメッセージを送信できません。\n${CHECK_BOT_PERMISSIONS_MESSAGE}`,
-	BOT_SEND_PERMISSION: `Botにメッセージ送信権限がありません。\n${CHECK_BOT_PERMISSIONS_MESSAGE}`,
-	BOT_REQUIRED_PERMISSION: `Botに必要な権限がありません。\n${CHECK_BOT_PERMISSIONS_MESSAGE}`,
-	IMAGE_TOO_LARGE: '画像サイズが大きすぎて送信できませんでした。\nページ数を減らして再試行してください。',
-	CHANNEL_INFO_FAILED: 'チャンネル情報の取得に失敗しました。\nもう一度お試しください。',
-	RATE_LIMIT: '送信が混み合っています。時間をおいて再試行してください。',
-} as const;
+type AppErrorCode = (typeof APP_ERROR_CODES)[number];
 
-type AppErrorCode = keyof typeof APP_ERROR_MESSAGES;
+const isAppErrorCode = (code: unknown): code is AppErrorCode => APP_ERROR_CODES.includes(code as AppErrorCode);
 
 const DISCORD_ERROR_MAP: Record<string, AppErrorCode> = {
 	'50001': 'BOT_SEND_PERMISSION',
@@ -269,10 +268,10 @@ export const processAttachment = async (
 	}
 };
 
-export const resolveUserMessage = (error: unknown): string => {
+export const resolveUserMessage = (error: unknown, locale: Locale): string => {
 	const code = (error as { code?: unknown } | null)?.code;
-	if (typeof code === 'string' && code in APP_ERROR_MESSAGES) {
-		return APP_ERROR_MESSAGES[code as AppErrorCode] ?? GENERIC_ERROR;
+	if (isAppErrorCode(code)) {
+		return t(locale, code);
 	}
 
 	if (error instanceof Error) {
@@ -283,9 +282,9 @@ export const resolveUserMessage = (error: unknown): string => {
 			|| err.killed === true
 			|| /timed out|timeout|タイムアウト/i.test(err.message)
 		) {
-			return TIMEOUT_RETRY;
+			return t(locale, 'TIMEOUT_RETRY');
 		}
 	}
 
-	return GENERIC_ERROR;
+	return t(locale, 'GENERIC_ERROR');
 };

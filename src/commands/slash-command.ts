@@ -11,18 +11,22 @@ import {
 	throwAppError,
 	type SendFiles,
 } from '../pdf';
+import { t, toLocale } from '../i18n';
 
 export = {
 	data: new SlashCommandBuilder()
 		.setName('pdf')
-		.setDescription('PDFファイルを画像に変換します')
+		.setDescription('Convert a PDF file to images')
+		.setDescriptionLocalizations({ ja: 'PDF ファイルを画像に変換します' })
 		.addAttachmentOption((option) => option
 			.setName('file')
-			.setDescription('変換するPDFファイル')
+			.setDescription('PDF file to convert')
+			.setDescriptionLocalizations({ ja: '変換する PDF ファイル' })
 			.setRequired(true)),
 	async execute(interaction: ChatInputCommandInteraction) {
 		const guildName = interaction.guild?.name ?? 'DM';
 		console.log(`[Command] pdf executed in ${guildName} by ${interaction.user.tag}`);
+		const locale = toLocale(interaction.locale);
 
 		let responded = false;
 		try {
@@ -66,12 +70,12 @@ export = {
 
 			await processAttachment(attachment, send, sharePdf);
 			if (!pdfMessage) {
-				const notice = await interaction.followUp({ content: 'PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
+				const notice = await interaction.followUp({ content: t(locale, 'PDF_NOT_SHARED'), flags: MessageFlags.Ephemeral });
 				deleteAfter(NOTICE_LIFETIME_MS, () => interaction.deleteReply(notice));
 			}
 		} catch (error) {
 			console.error('[Command] pdf failed:', error);
-			const userMessage = resolveUserMessage(error);
+			const userMessage = resolveUserMessage(error, locale);
 			try {
 				if (!interaction.deferred) {
 					await interaction.reply({ content: userMessage, flags: MessageFlags.Ephemeral });
