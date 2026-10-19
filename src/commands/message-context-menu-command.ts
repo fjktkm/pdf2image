@@ -8,10 +8,18 @@ import {
 	type MessageContextMenuCommandInteraction,
 	type StringSelectMenuInteraction,
 } from 'discord.js';
-import { createReplySender, isPdfAttachment, processAttachment, resolveUserMessage, throwAppError } from '../pdf';
+import {
+	createReplySender,
+	deleteAfter,
+	ERROR_LIFETIME_MS,
+	isPdfAttachment,
+	NOTICE_LIFETIME_MS,
+	processAttachment,
+	resolveUserMessage,
+	throwAppError,
+} from '../pdf';
 
 const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
-const COMPLETION_MESSAGE_LIFETIME_MS = 60_000;
 
 export = {
 	data: new ContextMenuCommandBuilder().setName('PDF').setType(ApplicationCommandType.Message),
@@ -63,18 +71,18 @@ export = {
 
 			await processAttachment(attachment, createReplySender(message));
 			await responder.editReply({ content: '✅ PDF変換が完了しました。', components: [] });
-			setTimeout(() => {
-				responder.deleteReply().catch(() => { });
-			}, COMPLETION_MESSAGE_LIFETIME_MS);
+			deleteAfter(NOTICE_LIFETIME_MS, () => responder.deleteReply());
 		} catch (error) {
 			console.error('[Command] PDF failed:', error);
 			const userMessage = resolveUserMessage(error);
 			try {
 				await responder.editReply({ content: userMessage, components: [] });
+				deleteAfter(ERROR_LIFETIME_MS, () => responder.deleteReply());
 			} catch (replyError) {
 				console.error('[Command] editReply failed, trying followUp:', replyError);
 				try {
-					await responder.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
+					const sent = await responder.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
+					deleteAfter(ERROR_LIFETIME_MS, () => responder.deleteReply(sent));
 				} catch (followUpError) {
 					console.error('[Command] followUp also failed:', followUpError);
 				}

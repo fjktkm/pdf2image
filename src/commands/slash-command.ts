@@ -1,5 +1,16 @@
 import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction, type Message } from 'discord.js';
-import { createReplySender, isFileTooLargeError, isPdfAttachment, processAttachment, resolveUserMessage, throwAppError, type SendFiles } from '../pdf';
+import {
+	createReplySender,
+	deleteAfter,
+	ERROR_LIFETIME_MS,
+	isFileTooLargeError,
+	isPdfAttachment,
+	NOTICE_LIFETIME_MS,
+	processAttachment,
+	resolveUserMessage,
+	throwAppError,
+	type SendFiles,
+} from '../pdf';
 
 export = {
 	data: new SlashCommandBuilder()
@@ -55,7 +66,8 @@ export = {
 
 			await processAttachment(attachment, send, sharePdf);
 			if (!pdfMessage) {
-				await interaction.followUp({ content: '⚠️ PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
+				const notice = await interaction.followUp({ content: '⚠️ PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
+				deleteAfter(NOTICE_LIFETIME_MS, () => interaction.deleteReply(notice));
 			}
 		} catch (error) {
 			console.error('[Command] pdf failed:', error);
@@ -63,12 +75,14 @@ export = {
 			try {
 				if (!interaction.deferred) {
 					await interaction.reply({ content: userMessage, flags: MessageFlags.Ephemeral });
+					deleteAfter(ERROR_LIFETIME_MS, () => interaction.deleteReply());
 					return;
 				}
 				if (!responded) {
 					await interaction.deleteReply();
 				}
-				await interaction.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
+				const sent = await interaction.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
+				deleteAfter(ERROR_LIFETIME_MS, () => interaction.deleteReply(sent));
 			} catch (replyError) {
 				console.error('[Command] pdf error reply failed:', replyError);
 			}

@@ -15,6 +15,8 @@ const DOWNLOAD_TIMEOUT_MS = 120_000;
 const CONVERT_TIMEOUT_MS = 120_000;
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_BASE_FILENAME_LENGTH = 64;
+export const NOTICE_LIFETIME_MS = 3_000;
+export const ERROR_LIFETIME_MS = 60_000;
 
 const DPI = 150;
 
@@ -194,6 +196,12 @@ export const createReplySender = (targetMessage: Message): SendFiles => async (f
 		throwAppError('CHANNEL_SEND_UNAVAILABLE');
 	}
 	return (send as (options: { files: string[] }) => Promise<unknown>)({ files });
+};
+
+export const deleteAfter = (delayMs: number, remove: () => Promise<unknown>): void => {
+	setTimeout(() => {
+		remove().catch(() => { });
+	}, delayMs);
 };
 
 export const isFileTooLargeError = (error: unknown): boolean => {
