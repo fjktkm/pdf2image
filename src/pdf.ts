@@ -269,7 +269,7 @@ export const processAttachment = async (
 	}
 };
 
-const resolveErrorMessage = (error: unknown): string => {
+export const resolveUserMessage = (error: unknown): string => {
 	const code = (error as { code?: unknown } | null)?.code;
 	if (typeof code === 'string' && code in APP_ERROR_MESSAGES) {
 		return APP_ERROR_MESSAGES[code as AppErrorCode] ?? GENERIC_ERROR;
@@ -289,5 +289,3 @@ const resolveErrorMessage = (error: unknown): string => {
 
 	return GENERIC_ERROR;
 };
-
-export const resolveUserMessage = (error: unknown): string => `❌ ${resolveErrorMessage(error)}`;

@@ -66,7 +66,7 @@ export = {
 
 			await processAttachment(attachment, send, sharePdf);
 			if (!pdfMessage) {
-				const notice = await interaction.followUp({ content: '⚠️ PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
+				const notice = await interaction.followUp({ content: 'PDFはサイズ上限を超えるため共有できませんでした。', flags: MessageFlags.Ephemeral });
 				deleteAfter(NOTICE_LIFETIME_MS, () => interaction.deleteReply(notice));
 			}
 		} catch (error) {
