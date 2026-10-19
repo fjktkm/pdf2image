@@ -1,16 +1,5 @@
 import { execFile } from 'child_process';
-import {
-	ActionRowBuilder,
-	ApplicationCommandType,
-	ComponentType,
-	ContextMenuCommandBuilder,
-	MessageFlags,
-	StringSelectMenuBuilder,
-	type Attachment,
-	type Message,
-	type MessageContextMenuCommandInteraction,
-	type StringSelectMenuInteraction,
-} from 'discord.js';
+import type { Attachment, Message } from 'discord.js';
 import { createWriteStream } from 'fs';
 import fs from 'fs/promises';
 import type { IncomingMessage } from 'http';
@@ -26,7 +15,6 @@ const DOWNLOAD_TIMEOUT_MS = 120_000;
 const CONVERT_TIMEOUT_MS = 120_000;
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_BASE_FILENAME_LENGTH = 64;
-const SELECTION_TIMEOUT_MS = 14 * 60 * 1000;
 
 const LOW_DENSITY = 100;
 const MEDIUM_DENSITY = 120;
@@ -62,7 +50,7 @@ const DISCORD_ERROR_MAP: Record<string, AppErrorCode> = {
 	'413': 'IMAGE_TOO_LARGE',
 };
 
-const throwAppError = (code: AppErrorCode): never => {
+export const throwAppError = (code: AppErrorCode): never => {
 	throw { code };
 };
 
@@ -85,7 +73,7 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
 	return Promise.race([promise, timeoutPromise]);
 };
 
-const isPdfAttachment = (attachment: Attachment): boolean => {
+export const isPdfAttachment = (attachment: Attachment): boolean => {
 	const contentType = attachment.contentType?.toLowerCase();
 	return contentType?.startsWith('application/pdf') || attachment.name.toLowerCase().endsWith('.pdf');
 };
@@ -246,11 +234,9 @@ const convertPdfToWebps = async (
 	}
 };
 
-const sendWebps = async (targetMessage: Message, files: string[], deadlineAt: number): Promise<void> => {
-	if (files.length === 0) {
-		throwAppError('UPLOAD_GENERATION_FAILED');
-	}
+export type SendFiles = (files: string[], index: number) => Promise<unknown>;
 
+export const createReplySender = (targetMessage: Message): SendFiles => async (files, index) => {
 	if (!targetMessage.channel) {
 		throwAppError('CHANNEL_SEND_UNAVAILABLE');
 	}
@@ -259,24 +245,35 @@ const sendWebps = async (targetMessage: Message, files: string[], deadlineAt: nu
 		await targetMessage.channel.fetch();
 	}
 
+	if (index === 0) {
+		return targetMessage.reply({ files, allowedMentions: { repliedUser: false } });
+	}
+
+	const sendableChannel = targetMessage.channel as { send?: (options: { files: string[] }) => Promise<unknown> };
+	const send = sendableChannel.send?.bind(targetMessage.channel);
+	if (typeof send !== 'function') {
+		throwAppError('CHANNEL_SEND_UNAVAILABLE');
+	}
+	return (send as (options: { files: string[] }) => Promise<unknown>)({ files });
+};
+
+export const isFileTooLargeError = (error: unknown): boolean => {
+	const { code, status } = (error ?? {}) as { code?: unknown; status?: unknown };
+	return code === 40005 || status === 413;
+};
+
+const sendWebps = async (send: SendFiles, files: string[], deadlineAt: number): Promise<void> => {
+	if (files.length === 0) {
+		throwAppError('UPLOAD_GENERATION_FAILED');
+	}
+
 	const firstMessageFiles = (files.length - 1) % 9 + 1;
 	for (let i = 0, messageIndex = 0; i < files.length; messageIndex++) {
 		const chunkSize = messageIndex === 0 ? firstMessageFiles : 9;
 		const filesToSend = files.slice(i, i + chunkSize);
 
 		try {
-			const sendPromise = messageIndex === 0
-				? targetMessage.reply({ files: filesToSend, allowedMentions: { repliedUser: false } })
-				: (() => {
-					const sendableChannel = targetMessage.channel as { send?: (options: { files: string[] }) => Promise<unknown> };
-					const send = sendableChannel.send?.bind(targetMessage.channel);
-					if (typeof send !== 'function') {
-						throwAppError('CHANNEL_SEND_UNAVAILABLE');
-					}
-					return (send as (options: { files: string[] }) => Promise<unknown>)({ files: filesToSend });
-				})();
-
-			await withTimeout(sendPromise, getStepTimeoutMs(deadlineAt, PROCESS_TIMEOUT_MS));
+			await withTimeout(send(filesToSend, messageIndex), getStepTimeoutMs(deadlineAt, PROCESS_TIMEOUT_MS));
 		} catch (error) {
 			if (error && typeof error === 'object') {
 				const mapped = DISCORD_ERROR_MAP[String((error as { code?: unknown }).code)]
@@ -292,7 +289,11 @@ const sendWebps = async (targetMessage: Message, files: string[], deadlineAt: nu
 	}
 };
 
-const processAttachment = async (targetMessage: Message, attachment: Attachment): Promise<void> => {
+export const processAttachment = async (
+	attachment: Attachment,
+	send: SendFiles,
+	onDownloaded?: (pdfPath: string) => Promise<void>,
+): Promise<void> => {
 	let pdfPath: string | undefined;
 	let imageDir: string | undefined;
 	const deadlineAt = Date.now() + PROCESS_TIMEOUT_MS;
@@ -303,8 +304,9 @@ const processAttachment = async (targetMessage: Message, attachment: Attachment)
 		pdfPath = path.join(path.dirname(imageDir), `${path.basename(imageDir)}.pdf`);
 
 		await downloadPdf(attachment.url, pdfPath, getStepTimeoutMs(deadlineAt, DOWNLOAD_TIMEOUT_MS));
+		await onDownloaded?.(pdfPath);
 		const generatedFiles = await convertPdfToWebps(pdfPath, imageDir, originalFilename, chooseDensity(attachment.size), deadlineAt);
-		await sendWebps(targetMessage, generatedFiles, deadlineAt);
+		await sendWebps(send, generatedFiles, deadlineAt);
 	} catch (error) {
 		console.error(`[Process] Failed processing ${attachment.name}:`, error);
 		throw error;
@@ -320,7 +322,7 @@ const processAttachment = async (targetMessage: Message, attachment: Attachment)
 	}
 };
 
-const resolveUserMessage = (error: unknown): string => {
+export const resolveUserMessage = (error: unknown): string => {
 	const code = (error as { code?: unknown } | null)?.code;
 	if (typeof code === 'string' && code in APP_ERROR_MESSAGES) {
 		return APP_ERROR_MESSAGES[code as AppErrorCode] ?? GENERIC_ERROR;
@@ -339,71 +341,4 @@ const resolveUserMessage = (error: unknown): string => {
 	}
 
 	return GENERIC_ERROR;
-};
-
-export = {
-	data: new ContextMenuCommandBuilder().setName('convertPDF').setType(ApplicationCommandType.Message),
-	async execute(interaction: MessageContextMenuCommandInteraction) {
-		const guildName = interaction.guild?.name ?? 'DM';
-		console.log(`[Command] convertPDF executed in ${guildName} by ${interaction.user.tag}`);
-
-		let responder: MessageContextMenuCommandInteraction | StringSelectMenuInteraction = interaction;
-		try {
-			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-			const message = interaction.targetMessage;
-
-			const pdfAttachments = Array.from(message.attachments.values()).filter(isPdfAttachment);
-			if (pdfAttachments.length === 0) {
-				throwAppError(message.attachments.size === 0 ? 'NO_ATTACHMENTS' : 'NO_PDF_ATTACHMENTS');
-			}
-
-			let attachment = pdfAttachments[0]!;
-			if (pdfAttachments.length > 1) {
-				const customId = `convertPDF:${interaction.id}`;
-				const menu = new StringSelectMenuBuilder()
-					.setCustomId(customId)
-					.setPlaceholder('変換するPDFを選択してください')
-					.addOptions(pdfAttachments.map((pdf, index) => ({
-						label: `${index + 1}. ${pdf.name}`.slice(0, 100),
-						value: pdf.id,
-					})));
-				const reply = await interaction.editReply({
-					components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)],
-				});
-
-				const selection = await reply.awaitMessageComponent({
-					componentType: ComponentType.StringSelect,
-					filter: (component) => component.customId === customId && component.user.id === interaction.user.id,
-					time: SELECTION_TIMEOUT_MS,
-				}).catch(() => undefined);
-				if (!selection) {
-					await interaction.deleteReply().catch(() => { });
-					return;
-				}
-				responder = selection;
-				attachment = pdfAttachments.find((pdf) => pdf.id === selection.values[0])!;
-				await selection.update({
-					content: '選択したPDFを変換しています。',
-					components: [],
-				});
-			}
-
-			await processAttachment(message, attachment);
-			await responder.editReply({ content: 'PDF変換が完了しました。', components: [] });
-		} catch (error) {
-			console.error('[Command] convertPDF failed:', error);
-			const userMessage = resolveUserMessage(error);
-			try {
-				await responder.editReply({ content: userMessage, components: [] });
-			} catch (replyError) {
-				console.error('[Command] editReply failed, trying followUp:', replyError);
-				try {
-					await responder.followUp({ content: userMessage, flags: MessageFlags.Ephemeral });
-				} catch (followUpError) {
-					console.error('[Command] followUp also failed:', followUpError);
-				}
-			}
-		}
-	},
 };

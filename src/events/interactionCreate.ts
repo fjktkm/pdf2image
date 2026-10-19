@@ -4,7 +4,7 @@ import type { Interaction } from 'discord.js';
 export = {
 	name: Events.InteractionCreate,
 	async execute(interaction: Interaction) {
-		if (!interaction.isMessageContextMenuCommand()) return;
+		if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) return;
 
 		const command = interaction.client.commands.get(interaction.commandName);
 
