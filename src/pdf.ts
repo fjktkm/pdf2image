@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import type { Attachment, Message } from 'discord.js';
+import { MessageFlags, type Attachment, type Message, type RepliableInteraction } from 'discord.js';
 import { createWriteStream } from 'fs';
 import fs from 'fs/promises';
 import type { IncomingMessage } from 'http';
@@ -203,6 +203,11 @@ export const createReplySender = (targetMessage: Message): SendFiles => async (f
 	}
 	return (send as (options: { files: string[] }) => Promise<unknown>)({ files });
 };
+
+export const createEphemeralSender = (interaction: RepliableInteraction): SendFiles => async (files, index) =>
+	index === 0
+		? interaction.editReply({ files, components: [] })
+		: interaction.followUp({ files, flags: MessageFlags.Ephemeral });
 
 export const deleteAfter = (delayMs: number, remove: () => Promise<unknown>): void => {
 	setTimeout(() => {

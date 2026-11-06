@@ -1,5 +1,6 @@
 import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction, type Message } from 'discord.js';
 import {
+	createEphemeralSender,
 	createReplySender,
 	deleteAfter,
 	ERROR_LIFETIME_MS,
@@ -24,13 +25,20 @@ export = {
 			.setName('file')
 			.setDescription('PDF file to convert')
 			.setDescriptionLocalizations({ ja: '変換する PDF ファイル' })
-			.setRequired(true)),
+			.setRequired(true))
+		.addBooleanOption((option) => option
+			.setName('private')
+			.setNameLocalizations({ ja: '自分のみ' })
+			.setDescription('Show the images only to you')
+			.setDescriptionLocalizations({ ja: '変換した画像を自分だけに表示します' })),
 	async execute(interaction: ChatInputCommandInteraction) {
+		const isPrivate = interaction.options.getBoolean('private') ?? false;
 		const log = logger.child({
 			command: 'pdf',
 			interactionId: interaction.id,
 			guildId: interaction.guildId,
 			userId: interaction.user.id,
+			private: isPrivate,
 		});
 		log.info('command executed');
 		const locale = toLocale(interaction.locale);
@@ -40,6 +48,18 @@ export = {
 			const attachment = interaction.options.getAttachment('file', true);
 			if (!isPdfAttachment(attachment)) {
 				throwAppError('NO_PDF_ATTACHMENTS');
+			}
+
+			if (isPrivate) {
+				await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+				const sendEphemeral = createEphemeralSender(interaction);
+				const send: SendFiles = async (files, index) => {
+					const sent = await sendEphemeral(files, index);
+					responded = true;
+					return sent;
+				};
+				await processAttachment(attachment, send, undefined, log);
+				return;
 			}
 
 			await interaction.deferReply();
